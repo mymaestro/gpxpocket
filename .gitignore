@@ -1,0 +1,8 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Build/runtime artifacts
+*.log
+*.tmp
