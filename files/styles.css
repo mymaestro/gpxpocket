@@ -79,6 +79,9 @@ code {
 .heatmap-table th,
 .heatmap-table td {
   width: 14.28%;
+  --bs-table-bg: transparent;
+  --bs-table-accent-bg: transparent;
+  box-shadow: none !important;
 }
 
 .hm-empty {
@@ -87,6 +90,8 @@ code {
 
 .heatmap-cell {
   user-select: none;
+  --bs-table-bg: transparent;
+  --bs-table-accent-bg: transparent;
 }
 
 .heatmap-cell.is-clickable {
@@ -94,24 +99,24 @@ code {
   font-weight: 600;
 }
 
-.hm-level-0 {
-  background: #f8f9fa;
+.heatmap-table td.hm-level-0 {
+  background-color: #f8f9fa !important;
 }
 
-.hm-level-1 {
-  background: #d4edda;
+.heatmap-table td.hm-level-1 {
+  background-color: #d4edda !important;
 }
 
-.hm-level-2 {
-  background: #a8ddb5;
+.heatmap-table td.hm-level-2 {
+  background-color: #a8ddb5 !important;
 }
 
-.hm-level-3 {
-  background: #7bcca0;
+.heatmap-table td.hm-level-3 {
+  background-color: #7bcca0 !important;
 }
 
-.hm-level-4 {
-  background: #4dbb8a;
+.heatmap-table td.hm-level-4 {
+  background-color: #4dbb8a !important;
   color: #fff;
 }
 

@@ -8,19 +8,19 @@
   <title>Geocaching GPX Friends</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="files/styles.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
 </head>
 <body>
   <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">
-    <a class="navbar-brand" href="#"><i class="bi bi-globe-americas mr-2" aria-hidden="true"></i>Geocaching</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">
+    <a class="navbar-brand" href="#"><i class="bi bi-globe-americas me-2" aria-hidden="true"></i>Geocaching</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbar-top">
-      <ul class="navbar-nav mr-auto">
+      <ul class="navbar-nav me-auto">
         <li class="nav-item">
           <a class="nav-link" href="./index.php">Home</a>
         </li>
@@ -34,7 +34,7 @@
           <a class="nav-link" href="./gpxhistory.php">GPX History</a>
         </li>
         <li class="nav-item active">
-          <a class="nav-link" href="./gpxfriends.php">GPX Friends <span class="sr-only">(current)</span></a>
+          <a class="nav-link" href="./gpxfriends.php">GPX Friends <span class="visually-hidden">(current)</span></a>
         </li>
       </ul>
     </div>
@@ -52,7 +52,7 @@
         <div class="col-lg-8 mb-4">
           <div class="card h-100">
             <div class="card-body">
-              <h5 class="card-title">MVP scaffold</h5>
+              <h5 class="card-title">Friends Feature</h5>
               <p class="card-text mb-3">This page is reserved for the new friends feature. Next implementation step is parsing logs by <code>groundspeak:finder</code> and ranking recurring cachers.</p>
               <ul class="mb-0">
                 <li>Input: one or more GPX/ZIP files</li>
@@ -127,6 +127,6 @@
   });
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 </body>
 </html>

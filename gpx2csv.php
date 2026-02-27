@@ -10,8 +10,8 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">
   
   <!-- Bootstrap core CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
   <!-- Custom styles for this template -->
   <link href="files/styles.css" rel="stylesheet">
   <!-- Include jquery -->
@@ -25,7 +25,7 @@
       var baseName = tableId.replace(/\.csv$/i, '');
 
       var $buttonRow = $('<div class="mt-3 mb-2">');
-      var $csvButton = $('<button type="button" class="btn btn-primary mr-2">Export CSV</button>');
+      var $csvButton = $('<button type="button" class="btn btn-primary me-2">Export CSV</button>');
       var $tsvButton = $('<button type="button" class="btn btn-outline-primary">Export TSV</button>');
       var $exportHelp = $('<div class="small text-muted mt-2">TSV is often best for LibreOffice/OpenOffice imports.</div>');
 
@@ -54,17 +54,17 @@
 </head>
 <body>
   <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">
-    <a class="navbar-brand" href="#"><i class="bi bi-globe-americas mr-2" aria-hidden="true"></i>Geocaching</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">
+    <a class="navbar-brand" href="#"><i class="bi bi-globe-americas me-2" aria-hidden="true"></i>Geocaching</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbar-top">
-      <ul class="navbar-nav mr-auto">
+      <ul class="navbar-nav me-auto">
         <li class="nav-item">
           <a class="nav-link" href="./index.php">Home</a>
         </li>
         <li class="nav-item active">
-          <a class="nav-link" href="./gpx2csv.php">GPX to CSV <span class="sr-only">(current)</span></a>
+          <a class="nav-link" href="./gpx2csv.php">GPX to CSV <span class="visually-hidden">(current)</span></a>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="./gpxdiff.php">GPX Diff</a>
@@ -76,7 +76,7 @@
           <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
         </li>
         <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">On geocaching.com</a>
+        <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">On geocaching.com</a>
         <div class="dropdown-menu" aria-labelledby="dropdown01">
           <a class="dropdown-item" href="https://www.geocaching.com/plan/lists" target="_blank">Lists</a>
           <a class="dropdown-item" href="https://www.geocaching.com/pocket/default.aspx" target="_blank">Pocket Queries</a>
@@ -440,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div id="selectedFileName" class="small mt-3 text-dark"></div>
           <div id="uploadingStatus" class="small mt-2 text-primary d-none">Uploading...</div>
         </div>
-        <div class="form-check mt-3 text-left">
+        <div class="form-check mt-3 text-start">
           <input class="form-check-input" type="checkbox" name="getCountyNames" id="getCountyNames" value="yes">
           <label class="form-check-label" for="getCountyNames">Get county names (takes way longer!)</label>
         </div>
@@ -594,6 +594,6 @@ error_log($message);
     });
   });
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 </body>
 </html>
