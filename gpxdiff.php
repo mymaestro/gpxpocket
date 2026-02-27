@@ -33,6 +33,9 @@
         <li class="nav-item">
           <a class="nav-link" href="./gpxhistory.php">GPX History</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
+        </li>
       </ul>
     </div>
   </nav>

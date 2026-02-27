@@ -72,6 +72,9 @@
         <li class="nav-item">
           <a class="nav-link" href="./gpxhistory.php">GPX History</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
+        </li>
         <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">On geocaching.com</a>
         <div class="dropdown-menu" aria-labelledby="dropdown01">
@@ -428,7 +431,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } else { // Not processing an upload, show the form
   echo '
   <div class="headline">
-      <form action="index.php" method="post" enctype="multipart/form-data" id="form1" class="mx-auto" style="max-width: 680px;">
+      <form action="gpx2csv.php" method="post" enctype="multipart/form-data" id="form1" class="mx-auto" style="max-width: 680px;">
         <input type="hidden" name="submit" value="Upload">
         <input type="file" name="fileToUpload" id="fileToUpload" class="d-none" accept=".gpx,.zip">
         <div id="dropZone" class="dropzone border border-secondary rounded p-4 bg-light" role="button" tabindex="0" aria-label="Upload GPX or zip file">
@@ -583,7 +586,7 @@ error_log($message);
     updateFloatingButtonVisibility();
 
     $clearPageButton.on('click', function () {
-      window.location.href = 'index.php';
+      window.location.href = 'gpx2csv.php';
     });
 
     $scrollTopButton.on('click', function () {

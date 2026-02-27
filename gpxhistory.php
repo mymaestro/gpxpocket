@@ -33,6 +33,9 @@
         <li class="nav-item active">
           <a class="nav-link" href="./gpxhistory.php">GPX History <span class="sr-only">(current)</span></a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
+        </li>
       </ul>
     </div>
   </nav>
@@ -189,27 +192,31 @@ function parseSnapshot($gpxPath, $displayName) {
         $logIndex = array();
 
         if (isset($cacheInfo->cache->logs) && isset($cacheInfo->cache->logs->log)) {
-            foreach ($cacheInfo->cache->logs->log as $log) {
+          foreach ($cacheInfo->cache->logs->log as $log) {
+            $logId = getLogIdFromNode($log);
+            if ($logId === '') {
+              continue;
+            }
+
                 $dateRaw = (string)$log->date;
                 $day = substr($dateRaw, 0, 10);
                 $type = (string)$log->type;
                 $finder = (string)$log->finder;
                 $text = trim(preg_replace('/\s+/', ' ', (string)$log->text));
-                $signature = sha1($dateRaw . '|' . $type . '|' . $finder . '|' . $text);
 
                 $entry = array(
+                    'logId' => $logId,
                     'dateRaw' => $dateRaw,
                     'day' => $day,
                     'type' => $type,
                     'finder' => $finder,
                     'text' => $text,
-                    'signature' => $signature,
                     'code' => $code,
                     'cacheName' => $cacheName,
                     'cacheUrl' => $cacheUrl,
                 );
                 $logs[] = $entry;
-                $logIndex[$signature] = $entry;
+                $logIndex[$logId] = $entry;
             }
         }
 
@@ -258,6 +265,27 @@ function formatDisplayDate($rawDate, $timestamp) {
   return (string)$rawDate;
 }
 
+  function getLogIdFromNode($logNode) {
+    if (!$logNode) {
+      return '';
+    }
+
+    $idFromArray = trim((string)$logNode['id']);
+    if ($idFromArray !== '') {
+      return $idFromArray;
+    }
+
+    $attrs = $logNode->attributes();
+    if ($attrs !== null && isset($attrs['id'])) {
+      $idFromAttrs = trim((string)$attrs['id']);
+      if ($idFromAttrs !== '') {
+        return $idFromAttrs;
+      }
+    }
+
+    return '';
+  }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $maxUploadBytes = 10 * 1024 * 1024;
     $uploads = normalizeUploadArray($_FILES['historyFiles']);
@@ -305,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $prevLogIndex = isset($prev['caches'][$code]) ? $prev['caches'][$code]['logIndex'] : array();
 
                     foreach ($currCache['logs'] as $log) {
-                        if (!isset($prevLogIndex[$log['signature']])) {
+                      if (!isset($prevLogIndex[$log['logId']])) {
                             $day = $log['day'];
                             if ($day === '' || strlen($day) < 10) {
                                 continue;

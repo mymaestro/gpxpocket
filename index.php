@@ -32,6 +32,9 @@
         <li class="nav-item">
           <a class="nav-link" href="./gpxhistory.php">GPX History</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
+        </li>
       </ul>
     </div>
   </nav>
@@ -71,6 +74,36 @@
               <h5 class="card-title">GPX History</h5>
               <p class="card-text">Drop many Pocket Queries and view activity over time in a calendar heatmap.</p>
               <a href="./gpxhistory.php" class="btn btn-primary mt-auto">Open Tool</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+          <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">GPX Friends</h5>
+              <p class="card-text">Discover recurring cachers, shared places, and finder activity from Pocket Query logs.</p>
+              <a href="./gpxfriends.php" class="btn btn-primary mt-auto">Open Tool</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Additional Utility Ideas</h5>
+              <ul class="mb-0">
+                <li>Watchlist Alerts (new, disabled, archived, and D/T changes)</li>
+                <li>No-Recent-Activity Finder (no logs in X days)</li>
+                <li>FTF Opportunity Scan (recent publishes with no found logs)</li>
+                <li>Route Optimizer (ordered cache list from a start point)</li>
+                <li>County/Region Progress Tracker (coverage and missing areas)</li>
+                <li>Challenge Checker (DT grid, year spread, and combo checks)</li>
+                <li>Geocaching Friends Finder (identify recurring finders across your Pocket Queries)</li>
+                <li>Finder Activity Explorer (lists, timelines, and maps of where selected cachers have been)</li>
+              </ul>
             </div>
           </div>
         </div>
