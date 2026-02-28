@@ -279,6 +279,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $submit.prop('disabled', files.length < 2);
     }
 
+    $form.on('submit', function (event) {
+      if ($form.data('submitting')) {
+        event.preventDefault();
+        return;
+      }
+
+      $form.data('submitting', true);
+      $submit.prop('disabled', true);
+      $submit.attr('aria-busy', 'true');
+      $submit.html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...');
+    });
+
     $dropZone.on('click', function () { $input.trigger('click'); });
     $dropZone.on('keydown', function (event) {
       if (event.key === 'Enter' || event.key === ' ') {

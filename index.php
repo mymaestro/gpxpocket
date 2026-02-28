@@ -19,7 +19,7 @@ renderPageStart(array(
           <div class="d-flex align-items-start gap-3">
             <div class="fs-3 lh-1 text-primary"><i class="bi bi-filetype-csv"></i></div>
             <div>
-              <h5 class="mb-1">GPX to CSV</h5>
+              <h5 class="mb-1">SpreadsheetMaker</h5>
               <p class="mb-2">Upload one GPX/ZIP and export the cache table as CSV or TSV.</p>
               <a href="./gpx2csv.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
             </div>
@@ -30,7 +30,7 @@ renderPageStart(array(
           <div class="d-flex align-items-start gap-3">
             <div class="fs-3 lh-1 text-primary"><i class="bi bi-intersect"></i></div>
             <div>
-              <h5 class="mb-1">GPX Diff</h5>
+              <h5 class="mb-1">Changed caches</h5>
               <p class="mb-2">Compare two Pocket Queries to find new caches, gone caches, and new logs.</p>
               <a href="./gpxdiff.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
             </div>
@@ -41,7 +41,7 @@ renderPageStart(array(
           <div class="d-flex align-items-start gap-3">
             <div class="fs-3 lh-1 text-primary"><i class="bi bi-calendar3"></i></div>
             <div>
-              <h5 class="mb-1">GPX History</h5>
+              <h5 class="mb-1">History heatmap</h5>
               <p class="mb-2">Drop many Pocket Queries and view activity over time in a calendar heatmap.</p>
               <a href="./gpxhistory.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
             </div>
@@ -52,7 +52,7 @@ renderPageStart(array(
           <div class="d-flex align-items-start gap-3">
             <div class="fs-3 lh-1 text-primary"><i class="bi bi-people"></i></div>
             <div>
-              <h5 class="mb-1">GPX Friends</h5>
+              <h5 class="mb-1">Caching companions</h5>
               <p class="mb-2">Discover recurring cachers, shared places, and finder activity from Pocket Query logs.</p>
               <a href="./gpxfriends.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
             </div>
@@ -63,7 +63,7 @@ renderPageStart(array(
           <div class="d-flex align-items-start gap-3">
             <div class="fs-3 lh-1 text-primary"><i class="bi bi-trophy"></i></div>
             <div>
-              <h5 class="mb-1">GPX Leaderboard</h5>
+              <h5 class="mb-1">Leaderboard</h5>
               <p class="mb-2">Rank recurring finders across Pocket Query snapshots with linked profile names.</p>
               <a href="./gpxleaderboard.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
             </div>
