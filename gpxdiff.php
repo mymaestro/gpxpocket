@@ -8,7 +8,7 @@ renderPageStart(array(
 ));
 ?>
       <div class="headline">
-        <img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">
+        <!--<img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">-->
         <h1>Compare two Geocaching GPX files</h1>
         <p class="lead">Upload two GPX (or ZIP containing GPX) files to see:<br>new caches, gone caches, and new logs since last time.</p>
       </div>

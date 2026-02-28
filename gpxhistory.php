@@ -8,7 +8,7 @@ renderPageStart(array(
 ));
 ?>
       <div class="headline">
-        <img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">
+        <!--<img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">-->
         <h1>Historical GPX activity heatmap</h1>
         <p class="lead">Drop multiple GPX/ZIP files at once. Pocket Queries are ordered by GPX &lt;time&gt; and visualized in a calendar heatmap.</p>
       </div>

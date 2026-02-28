@@ -123,7 +123,7 @@ function leaderboardFinderLink($finderName) {
 ?>
 
 <div class="headline">
-  <img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">
+  <!--<img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">-->
   <h1>Recurring finder leaderboard</h1>
   <p class="lead">Upload one or more Pocket Query GPX/ZIP files to rank recurring finders.</p>
 </div>
