@@ -17,8 +17,8 @@ if (!function_exists('renderNavbar')) {
             'gpxleaderboard' => array('label' => 'GPX Leaderboard', 'href' => './gpxleaderboard.php'),
         );
 
-        echo ' <div class="container-fluid">';
         echo '    <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">';
+        echo '      <div class="container-fluid px-3 px-md-4">';
         echo '      <a class="navbar-brand" href="#"><i class="bi bi-globe-americas me-2" aria-hidden="true"></i>Geocaching</a>';
         echo '      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">';
         echo '        <span class="navbar-toggler-icon"></span>';
@@ -50,8 +50,8 @@ if (!function_exists('renderNavbar')) {
 
         echo '      </ul>';
         echo '    </div>';
+        echo '    </div>';
         echo '  </nav>';
-        echo '  </div>';
     }
 }
 
