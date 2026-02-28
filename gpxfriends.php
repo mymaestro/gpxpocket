@@ -219,7 +219,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $groupMode = trim((string)(isset($_POST['groupMode']) ? $_POST['groupMode'] : 'connected'));
     $groupMinSize = (int)(isset($_POST['groupMinSize']) ? $_POST['groupMinSize'] : 3);
     $groupMinShared = (int)(isset($_POST['groupMinShared']) ? $_POST['groupMinShared'] : 2);
-    $showLeaderboard = isset($_POST['showLeaderboard']) && (string)$_POST['showLeaderboard'] === '1';
     if ($buddyHours < 1) {
         $buddyHours = 1;
     } elseif ($buddyHours > 168) {
@@ -715,40 +714,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo '<div class="alert alert-warning" role="alert">' . h($message) . '</div>';
             }
 
-            if ($showLeaderboard) {
-                echo '<div class="card mb-4">';
-                echo '  <div class="card-body">';
-                echo '    <h5 class="card-title mb-3">Finder leaderboard</h5>';
-                echo '    <div class="table-responsive">';
-                echo '      <table class="table table-striped table-sm">';
-                echo '        <thead><tr>';
-                echo '          <th>#</th>';
-                echo '          <th>Finder</th>';
-                echo '          <th class="text-end">Logs</th>';
-                echo '          <th class="text-end">Found it logs</th>';
-                echo '          <th class="text-end">Unique caches</th>';
-                echo '          <th>Last seen</th>';
-                echo '        </tr></thead><tbody>';
-
-                $rank = 1;
-                foreach ($rows as $row) {
-                    echo '<tr>';
-                    echo '  <td>' . $rank . '</td>';
-                    echo '  <td>' . finderProfileLink($row['finderName']) . '</td>';
-                    echo '  <td class="text-end">' . (int)$row['logCount'] . '</td>';
-                    echo '  <td class="text-end">' . (int)$row['foundItCount'] . '</td>';
-                    echo '  <td class="text-end">' . (int)$row['uniqueCaches'] . '</td>';
-                    echo '  <td>' . h(formatLogDate($row['lastSeenRaw'])) . '</td>';
-                    echo '</tr>';
-                    $rank++;
-                }
-
-                echo '        </tbody></table>';
-                echo '    </div>';
-                echo '  </div>';
-                echo '</div>';
-            }
-
             echo '<div class="card mb-4">';
             echo '  <div class="card-body">';
             echo '    <h5 class="card-title mb-1">Connection clusters</h5>';
@@ -807,7 +772,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo '      <li>Buddy time window: ' . (int)$buddyHours . ' hour(s)</li>';
             echo '      <li>Buddy pairs found: ' . count($pairRows) . '</li>';
             echo '      <li>Total clusters shown: ' . count($clusterRows) . '</li>';
-            echo '      <li>Finder leaderboard shown: ' . ($showLeaderboard ? 'Yes' : 'No') . '</li>';
             echo '      <li>Group mode: ' . h($groupModeLabel) . '</li>';
             echo '      <li>Group threshold: at least ' . (int)$groupMinSize . ' members with pair shared-finds ≥ ' . (int)$groupMinShared . '</li>';
             echo '      <li>Groups found: ' . count($groupRows) . '</li>';
@@ -837,9 +801,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="text" class="form-control" id="excludeFinder" name="excludeFinder" placeholder="e.g., myusername">
                     <div class="small text-muted mt-1">Case-insensitive exact match.</div>
                 </div>
-                <div class="form-check mt-3 text-start">
-                    <input class="form-check-input" type="checkbox" value="1" id="showLeaderboard" name="showLeaderboard">
-                    <label class="form-check-label" for="showLeaderboard">Show finder leaderboard</label>
+                <div class="small text-start mt-3">
+                    Looking for rankings only? <a href="./gpxleaderboard.php">Open GPX Leaderboard page</a>.
                 </div>
                 <div class="form-group mt-3 text-start">
                     <label for="buddyHours">Buddy time window (hours)</label>
@@ -864,7 +827,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="number" class="form-control" id="groupMinShared" name="groupMinShared" min="1" max="100" value="2">
                     </div>
                 </div>
-                <button id="friendsSubmit" type="submit" class="btn btn-primary mt-2" disabled>Build Friends Leaderboard</button>
+                <button id="friendsSubmit" type="submit" class="btn btn-primary mt-2" disabled>Build Friends Clusters</button>
             </form>
         </div>
         <div class="row">
@@ -872,13 +835,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card h-100">
                     <div class="card-body">
                         <h5 class="card-title">Friends Feature</h5>
-                        <p class="card-text mb-3">This first MVP ranks recurring cachers by unique log ID, finder identity, and cache coverage.</p>
+                        <p class="card-text mb-3">This page focuses on co-find clusters and likely caching groups from unique log IDs.</p>
                         <ul class="mb-0">
                             <li>Input: one or more GPX/ZIP files</li>
                             <li>Core dedup: global by log <code>id</code></li>
                             <li>Grouping key: finder <code>id</code> (or finder name fallback)</li>
                             <li>Buddy detection: shared cache + close log timestamps</li>
                             <li>Group detection: toggle between connected and strict clique modes</li>
+                            <li>Leaderboards now live on <a href="./gpxleaderboard.php">GPX Leaderboard</a></li>
                         </ul>
                     </div>
                 </div>

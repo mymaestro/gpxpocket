@@ -14,6 +14,7 @@ if (!function_exists('renderNavbar')) {
             'gpxdiff' => array('label' => 'GPX Diff', 'href' => './gpxdiff.php'),
             'gpxhistory' => array('label' => 'GPX History', 'href' => './gpxhistory.php'),
             'gpxfriends' => array('label' => 'GPX Friends', 'href' => './gpxfriends.php'),
+            'gpxleaderboard' => array('label' => 'GPX Leaderboard', 'href' => './gpxleaderboard.php'),
         );
 
         echo '  <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">';

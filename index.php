@@ -53,6 +53,16 @@ renderPageStart(array(
             </div>
           </div>
         </div>
+
+        <div class="col-md-4 mb-4">
+          <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">GPX Leaderboard</h5>
+              <p class="card-text">Rank recurring finders across Pocket Query snapshots with linked profile names.</p>
+              <a href="./gpxleaderboard.php" class="btn btn-primary mt-auto">Open Tool</a>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="row">
