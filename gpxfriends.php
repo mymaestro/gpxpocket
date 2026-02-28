@@ -9,6 +9,47 @@ renderPageStart(array(
   'activeNav' => 'gpxfriends',
 ));
 
+function extractFinderFromLog($log) {
+    $finderName = '';
+    $finderId = '';
+
+    if (isset($log->finder)) {
+        $finderName = trim((string)$log->finder);
+        $finderId = trim((string)$log->finder['id']);
+
+        if ($finderId === '') {
+            $finderAttrs = $log->finder->attributes();
+            if ($finderAttrs !== null && isset($finderAttrs['id'])) {
+                $finderId = trim((string)$finderAttrs['id']);
+            }
+        }
+    }
+
+    if ($finderName === '' || $finderId === '') {
+        $logNs = $log->children('http://www.groundspeak.com/cache/1/0/1');
+        if (isset($logNs->finder)) {
+            if ($finderName === '') {
+                $finderName = trim((string)$logNs->finder);
+            }
+
+            if ($finderId === '') {
+                $finderId = trim((string)$logNs->finder['id']);
+                if ($finderId === '') {
+                    $finderAttrs = $logNs->finder->attributes();
+                    if ($finderAttrs !== null && isset($finderAttrs['id'])) {
+                        $finderId = trim((string)$finderAttrs['id']);
+                    }
+                }
+            }
+        }
+    }
+
+    return array(
+        'finderName' => $finderName,
+        'finderId' => $finderId,
+    );
+}
+
 function parseFriendsSnapshot($gpxPath, $displayName) {
     libxml_use_internal_errors(true);
     $xml = simplexml_load_file($gpxPath, 'SimpleXMLElement', LIBXML_NONET);
@@ -47,12 +88,13 @@ function parseFriendsSnapshot($gpxPath, $displayName) {
                 continue;
             }
 
-            $finderName = trim((string)$log->finder);
+            $finder = extractFinderFromLog($log);
+            $finderName = $finder['finderName'];
             if ($finderName === '') {
                 continue;
             }
 
-            $finderId = trim((string)$log->finder['id']);
+            $finderId = $finder['finderId'];
             $logType = trim((string)$log->type);
             $dateRaw = trim((string)$log->date);
             $dateTs = strtotime($dateRaw);
@@ -147,6 +189,16 @@ function findStrictCliques($graph, $minSize, $maxResults) {
         'groups' => $cliques,
         'truncated' => $truncated,
     );
+}
+
+function finderProfileLink($finderName) {
+    $name = trim((string)$finderName);
+    if ($name === '') {
+        return '—';
+    }
+
+    $profileUrl = 'https://www.geocaching.com/p/?u=' . rawurlencode($name);
+    return '<a href="' . h($profileUrl) . '" target="_blank" rel="noopener">' . h($name) . '</a>';
 }
 ?>
 
@@ -535,12 +587,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $memberLabels = array();
                 foreach ($component as $memberKey) {
                     $memberName = isset($finderProfiles[$memberKey]) ? $finderProfiles[$memberKey]['finderName'] : $memberKey;
-                    $memberId = isset($finderProfiles[$memberKey]) ? $finderProfiles[$memberKey]['finderId'] : '';
-                    if ($memberId !== '') {
-                        $memberLabels[] = $memberName . ' (#' . $memberId . ')';
-                    } else {
-                        $memberLabels[] = $memberName;
-                    }
+                    $memberLabels[] = $memberName;
                 }
 
                 $groupRows[] = array(
@@ -579,13 +626,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($pairRows as $pairRow) {
                 $leftLabel = $pairRow['leftName'];
-                if ($pairRow['leftId'] !== '') {
-                    $leftLabel .= ' (#' . $pairRow['leftId'] . ')';
-                }
                 $rightLabel = $pairRow['rightName'];
-                if ($pairRow['rightId'] !== '') {
-                    $rightLabel .= ' (#' . $pairRow['rightId'] . ')';
-                }
 
                 $exampleParts = array();
                 foreach ($pairRow['examples'] as $example) {
@@ -600,7 +641,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $clusterRows[] = array(
                     'kind' => 'Pair',
-                    'membersLabel' => h($leftLabel . ' + ' . $rightLabel),
+                    'membersLabel' => finderProfileLink($leftLabel) . ' + ' . finderProfileLink($rightLabel),
+                    'membersSortLabel' => $leftLabel . ' + ' . $rightLabel,
                     'memberCount' => 2,
                     'connectedPairsLabel' => '1/1',
                     'density' => 1,
@@ -613,10 +655,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             foreach ($groupRows as $groupRow) {
-                $strongestPairLabel = '—';
+                $strongestPairHtml = '—';
                 $groupExampleParts = array();
                 if ($groupRow['strongestPair'] !== null) {
-                    $strongestPairLabel = $groupRow['strongestPair']['leftName'] . ' + ' . $groupRow['strongestPair']['rightName']
+                    $strongestPairHtml = finderProfileLink($groupRow['strongestPair']['leftName']) . ' + '
+                        . finderProfileLink($groupRow['strongestPair']['rightName'])
                         . ' (' . (int)$groupRow['strongestPair']['sharedCount'] . ')';
 
                     if (isset($groupRow['strongestPair']['examples']) && is_array($groupRow['strongestPair']['examples'])) {
@@ -632,15 +675,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
+                $groupMemberLinks = array();
+                foreach ($groupRow['members'] as $memberName) {
+                    $groupMemberLinks[] = finderProfileLink($memberName);
+                }
+
                 $clusterRows[] = array(
                     'kind' => 'Group',
-                    'membersLabel' => h(implode(', ', $groupRow['members'])),
+                    'membersLabel' => implode(', ', $groupMemberLinks),
+                    'membersSortLabel' => implode(', ', $groupRow['members']),
                     'memberCount' => (int)$groupRow['memberCount'],
                     'connectedPairsLabel' => (int)$groupRow['edgeCount'] . '/' . (int)$groupRow['possibleEdges'],
                     'density' => (float)$groupRow['density'],
                     'pairSharedSum' => (int)$groupRow['sharedEdgeSum'],
                     'lastTogetherTs' => (int)$groupRow['lastTogetherTs'],
-                    'detailsHtml' => 'Strongest pair: ' . h($strongestPairLabel)
+                    'detailsHtml' => 'Strongest pair: ' . $strongestPairHtml
                         . (count($groupExampleParts) > 0 ? '; Examples: ' . implode('; ', $groupExampleParts) : ''),
                 );
             }
@@ -658,7 +707,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($a['lastTogetherTs'] !== $b['lastTogetherTs']) {
                     return $b['lastTogetherTs'] <=> $a['lastTogetherTs'];
                 }
-                return strcasecmp($a['membersLabel'], $b['membersLabel']);
+                return strcasecmp($a['membersSortLabel'], $b['membersSortLabel']);
             });
 
             echo '<div class="alert alert-success" role="alert">Processed ' . count($snapshots) . ' Pocket Queries and ' . count($seenLogs) . ' unique logs. Found ' . count($rows) . ' distinct cachers.</div>';
@@ -675,7 +724,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo '        <thead><tr>';
                 echo '          <th>#</th>';
                 echo '          <th>Finder</th>';
-                echo '          <th>Finder ID</th>';
                 echo '          <th class="text-end">Logs</th>';
                 echo '          <th class="text-end">Found it logs</th>';
                 echo '          <th class="text-end">Unique caches</th>';
@@ -686,8 +734,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($rows as $row) {
                     echo '<tr>';
                     echo '  <td>' . $rank . '</td>';
-                    echo '  <td>' . h($row['finderName']) . '</td>';
-                    echo '  <td>' . h($row['finderId'] !== '' ? $row['finderId'] : '—') . '</td>';
+                    echo '  <td>' . finderProfileLink($row['finderName']) . '</td>';
                     echo '  <td class="text-end">' . (int)$row['logCount'] . '</td>';
                     echo '  <td class="text-end">' . (int)$row['foundItCount'] . '</td>';
                     echo '  <td class="text-end">' . (int)$row['uniqueCaches'] . '</td>';
