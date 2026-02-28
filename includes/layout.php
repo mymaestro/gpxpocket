@@ -49,6 +49,11 @@ if (!function_exists('renderNavbar')) {
         echo '        </li>';
 
         echo '      </ul>';
+        echo '        <ul class="navbar-nav ms-md-3">';
+        echo '          <li class="nav-item">';
+        echo '            <a class="nav-link" href="https://github.com/mymaestro/gpxpocket" target="_blank" rel="noopener"><i class="bi bi-github me-1" aria-hidden="true"></i>GitHub</a>';
+        echo '          </li>';
+        echo '        </ul>';
         echo '    </div>';
         echo '    </div>';
         echo '  </nav>';
