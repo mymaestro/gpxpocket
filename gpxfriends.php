@@ -203,7 +203,6 @@ function finderProfileLink($finderName) {
 ?>
 
       <div class="headline">
-        <!--<img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">-->
         <h1>Discover recurring cachers from GPX logs</h1>
         <p class="lead">Upload one or more Pocket Query GPX/ZIP files to build a recurring finder leaderboard.</p>
       </div>

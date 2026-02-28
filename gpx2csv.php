@@ -47,7 +47,6 @@ renderPageStart(array(
 ));
 ?>
     <div class="headline">
-      <!--<img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/csv.png">-->
       <h1>Create a spreadsheet from a Geocaching list</h1>
       <p class="lead">Take a GPX file from a Geocaching List or Pocket Query<br>Get a table with critical information.</p>
     </div>

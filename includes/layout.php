@@ -65,6 +65,7 @@ if (!function_exists('renderPageStart')) {
         $title = isset($options['title']) ? $options['title'] : 'Geocaching Tools';
         $description = isset($options['description']) ? $options['description'] : 'Geocaching GPX tools suite';
         $activeNav = isset($options['activeNav']) ? $options['activeNav'] : 'home';
+        $bodyClass = isset($options['bodyClass']) ? trim((string)$options['bodyClass']) : '';
         $extraHeadHtml = isset($options['extraHeadHtml']) ? $options['extraHeadHtml'] : '';
 
         echo '<!doctype html>';
@@ -86,7 +87,7 @@ if (!function_exists('renderPageStart')) {
         }
 
         echo '</head>';
-        echo '<body>';
+        echo '<body' . ($bodyClass !== '' ? ' class="' . layoutEscape($bodyClass) . '"' : '') . '>';
 
         renderNavbar($activeNav);
 

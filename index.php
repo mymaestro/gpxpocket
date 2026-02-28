@@ -5,15 +5,15 @@ renderPageStart(array(
   'title' => 'Geocaching Tools',
   'description' => 'Geocaching GPX tools suite',
   'activeNav' => 'home',
+  'bodyClass' => 'home-page',
 ));
 ?>
-  <div class="mx-auto" style="max-width: 1100px;">
-      <div class="headline">
-        <img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/csv.png">
-        <h1>Geocaching GPX Toolset</h1>
-        <p class="lead">Convert, compare, and analyze your Geocaching Pocket Query GPX files.</p>
-      </div>
-
+<section class="headline">
+  <!--<img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/csv.png">-->
+  <h1>Geocaching GPX Toolset</h1>
+  <p class="lead">Convert, compare, and analyze your Geocaching Pocket Query GPX files.</p>
+</section>
+<div class="mx-auto" style="max-width: 1100px;">
       <div class="row row-cols-1 row-cols-md-2 g-4 mb-4">
         <div class="col">
           <div class="d-flex align-items-start gap-3">
