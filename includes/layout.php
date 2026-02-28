@@ -71,7 +71,7 @@ if (!function_exists('renderPageStart')) {
         echo '  <meta name="author" content="Warren Gill">';
         echo '  <title>' . layoutEscape($title) . '</title>';
         echo '  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ctext y=\'0.9em\' font-size=\'90%\'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">';
-        echo '  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">';
+        echo '  <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">';
         echo '  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">';
         echo '  <link href="files/styles.css" rel="stylesheet">';
         echo '  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>';
