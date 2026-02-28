@@ -1,47 +1,12 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="Historical GPX activity heatmap">
-  <meta name="author" content="Warren Gill">
-  <title>Geocaching GPX History</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">
+<?php
+require_once __DIR__ . '/includes/layout.php';
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="files/styles.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
-</head>
-<body>
-  <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">
-    <a class="navbar-brand" href="#"><i class="bi bi-globe-americas me-2" aria-hidden="true"></i>Geocaching</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbar-top">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item">
-          <a class="nav-link" href="./index.php">Home</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpx2csv.php">GPX to CSV</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpxdiff.php">GPX Diff</a>
-        </li>
-        <li class="nav-item active">
-          <a class="nav-link" href="./gpxhistory.php">GPX History <span class="visually-hidden">(current)</span></a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-
-  <main role="main" class="flex-shrink-0">
-    <div class="container-fluid px-3 px-md-4">
+renderPageStart(array(
+  'title' => 'Geocaching GPX History',
+  'description' => 'Historical GPX activity heatmap',
+  'activeNav' => 'gpxhistory',
+));
+?>
       <div class="headline">
         <img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/gpx.png">
         <h1>Historical GPX activity heatmap</h1>
@@ -50,115 +15,8 @@
 
 <?php
 $message = '';
-
-function h($value) {
-    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-function endswith($haystack, $needle) {
-    $strlen = strlen($haystack);
-    $testlen = strlen($needle);
-    if ($testlen > $strlen) return false;
-    return substr_compare($haystack, $needle, $strlen - $testlen, $testlen) === 0;
-}
-
-function normalizeUploadArray($fileField) {
-    if (!isset($fileField['name'])) {
-        return array();
-    }
-
-    if (!is_array($fileField['name'])) {
-        return array($fileField);
-    }
-
-    $normalized = array();
-    $count = count($fileField['name']);
-    for ($index = 0; $index < $count; $index++) {
-        $normalized[] = array(
-            'name' => $fileField['name'][$index],
-            'type' => $fileField['type'][$index],
-            'tmp_name' => $fileField['tmp_name'][$index],
-            'error' => $fileField['error'][$index],
-            'size' => $fileField['size'][$index],
-        );
-    }
-    return $normalized;
-}
-
-function extractGpxFromUpload($upload, $maxUploadBytes, &$message) {
-    if (!isset($upload['error']) || $upload['error'] !== UPLOAD_ERR_OK) {
-        return null;
-    }
-
-    $fileSource = $upload['tmp_name'];
-    $fileName = basename($upload['name']);
-    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-    $fileSize = (int)$upload['size'];
-    $fileZip = '';
-
-    if (!is_uploaded_file($fileSource)) {
-        $message .= 'Invalid upload source for ' . $fileName . '. ';
-        return null;
-    }
-
-    if ($fileSize <= 0 || $fileSize > $maxUploadBytes) {
-        $message .= 'Invalid file size for ' . $fileName . '. ';
-        return null;
-    }
-
-    if ($fileExt !== 'gpx') {
-        if ($fileExt !== 'zip') {
-            $message .= 'Only GPX/ZIP supported: ' . $fileName . '. ';
-            return null;
-        }
-
-        $filePath = pathinfo(realpath($fileSource), PATHINFO_DIRNAME);
-        $zip = new ZipArchive;
-        $foundGpx = false;
-
-        if ($zip->open($fileSource) !== true) {
-            $message .= 'Failed to open ZIP: ' . $fileName . '. ';
-            return null;
-        }
-
-        for ($f = 0; $f < $zip->numFiles; $f++) {
-            $zfileName = $zip->getNameIndex($f);
-            if ($zfileName === false || strpos($zfileName, "\0") !== false) {
-                continue;
-            }
-
-            $zfileBase = basename($zfileName);
-            if ($zfileBase !== $zfileName && strpos($zfileName, '/') !== false) {
-                continue;
-            }
-
-            if (endswith(strtolower($zfileBase), '.gpx') && !endswith(strtolower($zfileBase), 'wpts.gpx')) {
-                $zfileContents = $zip->getFromIndex($f);
-                if ($zfileContents !== false) {
-                    $tmpExtracted = tempnam($filePath, 'gpx_');
-                    if ($tmpExtracted !== false && file_put_contents($tmpExtracted, $zfileContents) !== false) {
-                        $fileZip = $fileSource;
-                        $fileSource = $tmpExtracted;
-                        $foundGpx = true;
-                        break;
-                    }
-                }
-            }
-        }
-        $zip->close();
-
-        if (!$foundGpx) {
-            $message .= 'No GPX found inside ZIP: ' . $fileName . '. ';
-            return null;
-        }
-    }
-
-    return array(
-        'source' => $fileSource,
-        'zip' => $fileZip,
-        'name' => $fileName,
-    );
-}
+require_once __DIR__ . '/includes/gpx_helpers.php';
+require_once __DIR__ . '/includes/gpx_format_helpers.php';
 
 function parseSnapshot($gpxPath, $displayName) {
     libxml_use_internal_errors(true);
@@ -239,52 +97,6 @@ function parseSnapshot($gpxPath, $displayName) {
         'caches' => $caches,
     );
 }
-
-function cleanupExtracted($parsedUpload) {
-    if (!$parsedUpload) {
-        return;
-    }
-    if (!empty($parsedUpload['zip']) && file_exists($parsedUpload['zip'])) {
-        unlink($parsedUpload['zip']);
-    }
-    if (!empty($parsedUpload['source']) && file_exists($parsedUpload['source'])) {
-        unlink($parsedUpload['source']);
-    }
-}
-
-function formatDisplayDate($rawDate, $timestamp) {
-  if (is_numeric($timestamp) && (int)$timestamp > 0) {
-    return date('M j, Y g:i A T', (int)$timestamp);
-  }
-
-  $parsed = strtotime((string)$rawDate);
-  if ($parsed !== false) {
-    return date('M j, Y g:i A T', $parsed);
-  }
-
-  return (string)$rawDate;
-}
-
-  function getLogIdFromNode($logNode) {
-    if (!$logNode) {
-      return '';
-    }
-
-    $idFromArray = trim((string)$logNode['id']);
-    if ($idFromArray !== '') {
-      return $idFromArray;
-    }
-
-    $attrs = $logNode->attributes();
-    if ($attrs !== null && isset($attrs['id'])) {
-      $idFromAttrs = trim((string)$attrs['id']);
-      if ($idFromAttrs !== '') {
-        return $idFromAttrs;
-      }
-    }
-
-    return '';
-  }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $maxUploadBytes = 10 * 1024 * 1024;
@@ -440,24 +252,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
     </div>
   </main>
-
-  <footer class="footer mt-auto py-3">
-    <div class="container-fluid px-3 px-md-4">
-      <span class="text-muted">Copyright 2026 FishParts Media. v1.0</span>
-    </div>
-  </footer>
-
-  <button id="clearPageButton" type="button" class="btn btn-danger floating-action-button clear-page-button" aria-label="Start over" title="Start over">
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1zm-3.5 0v-.5h-6V3z"/>
-    </svg>
-  </button>
-  <button id="scrollTopButton" type="button" class="btn btn-primary floating-action-button scroll-top-button" aria-label="Scroll to top" title="Scroll to top">
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8 5.707 5.354 8.354a.5.5 0 1 1-.708-.708z"/>
-    </svg>
-  </button>
 
   <script>
   $(function () {
@@ -642,37 +436,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   });
   </script>
 
-  <script>
-  $(function () {
-    var $clearPageButton = $('#clearPageButton');
-    var $scrollTopButton = $('#scrollTopButton');
-    if (!$scrollTopButton.length || !$clearPageButton.length) {
-      return;
-    }
-
-    function updateFloatingButtonVisibility() {
-      if ($(window).scrollTop() > 220) {
-        $scrollTopButton.addClass('is-visible');
-        $clearPageButton.addClass('is-visible');
-      } else {
-        $scrollTopButton.removeClass('is-visible');
-        $clearPageButton.removeClass('is-visible');
-      }
-    }
-
-    $(window).on('scroll', updateFloatingButtonVisibility);
-    updateFloatingButtonVisibility();
-
-    $clearPageButton.on('click', function () {
-      window.location.href = 'gpxhistory.php';
-    });
-
-    $scrollTopButton.on('click', function () {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  });
-  </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-</body>
-</html>
+<?php renderPageEnd(array('includeFloatingButtons' => true, 'clearPageHref' => 'gpxhistory.php')); ?>

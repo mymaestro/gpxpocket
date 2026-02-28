@@ -1,46 +1,12 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="Geocaching GPX tools suite">
-  <meta name="author" content="Warren Gill">
-  <title>Geocaching Tools</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">
+<?php
+require_once __DIR__ . '/includes/layout.php';
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="files/styles.css" rel="stylesheet">
-</head>
-<body>
-  <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">
-    <a class="navbar-brand" href="#"><i class="bi bi-globe-americas me-2" aria-hidden="true"></i>Geocaching</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbar-top">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item active">
-          <a class="nav-link" href="./index.php">Home <span class="visually-hidden">(current)</span></a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpx2csv.php">GPX to CSV</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpxdiff.php">GPX Diff</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpxhistory.php">GPX History</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="./gpxfriends.php">GPX Friends</a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-
-  <main role="main" class="flex-shrink-0">
-    <div class="container-fluid px-3 px-md-4">
+renderPageStart(array(
+  'title' => 'Geocaching Tools',
+  'description' => 'Geocaching GPX tools suite',
+  'activeNav' => 'home',
+));
+?>
       <div class="headline">
         <img src="images/gpx.png"><img src="images/circle-right.png"><img src="images/csv.png">
         <h1>Geocaching GPX Toolset</h1>
@@ -108,16 +74,4 @@
           </div>
         </div>
       </div>
-    </div>
-  </main>
-
-  <footer class="footer mt-auto py-3">
-    <div class="container-fluid px-3 px-md-4">
-      <span class="text-muted">Copyright 2026 FishParts Media. v1.0</span>
-    </div>
-  </footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-</body>
-</html>
+<?php renderPageEnd(); ?>
