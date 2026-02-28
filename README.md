@@ -11,12 +11,15 @@ Tools to help you report from Geocaching Pocket Queries
 - Challenge Checker (DT grid, year spread, and combo checks)
 - Geocaching Friends Finder (identify recurring finders across your Pocket Queries)
 - Finder Activity Explorer (lists, timelines, and maps of where selected cachers have been)
+- Profile 2.0 Modernization (interactive chronology, challenge, and map-based profile stats)
 
 Implementation notes for AI finds insights: [files/AI_FINDS_INSIGHTS_MVP.md](files/AI_FINDS_INSIGHTS_MVP.md).
 
 Implementation notes for caching friends feature: [files/CACHING_FRIENDS_FEATURE_PLAN.md](files/CACHING_FRIENDS_FEATURE_PLAN.md).
 
 Implementation notes for county/region progress: [files/COUNTY_REGION_PROGRESS_PLAN.md](files/COUNTY_REGION_PROGRESS_PLAN.md).
+
+Implementation notes for Profile 2.0 modernization: [files/PROFILE_2_MODERN_SPEC.md](files/PROFILE_2_MODERN_SPEC.md).
 
 ## Pocket Query GPX field map
 

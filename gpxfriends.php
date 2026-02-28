@@ -722,41 +722,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (count($clusterRows) < 1) {
                 echo '    <div class="alert alert-secondary mb-0" role="alert">No pair or group clusters found for current thresholds.</div>';
             } else {
-                echo '    <div class="table-responsive">';
-                echo '      <table class="table table-striped table-sm">';
-                echo '        <thead><tr>';
-                echo '          <th>Type</th>';
-                echo '          <th>Members</th>';
-                echo '          <th class="text-end">Size</th>';
-                echo '          <th class="text-end">Connected pairs</th>';
-                echo '          <th class="text-end">Density</th>';
-                echo '          <th class="text-end">Pair shared sum</th>';
-                echo '          <th>Last activity</th>';
-                echo '          <th>Details</th>';
-                echo '        </tr></thead><tbody>';
+                echo '    <div class="row g-3">';
 
                 foreach ($clusterRows as $clusterRow) {
                     $densityPct = number_format($clusterRow['density'] * 100, 1) . '%';
-                    $kindIconHtml = '<i class="bi bi-people" aria-hidden="true"></i><span class="visually-hidden">Pair</span>';
+                    $kindIconHtml = '<i class="bi bi-people" aria-hidden="true"></i>';
                     $kindTitle = 'Pair';
                     if ($clusterRow['kind'] === 'Group') {
-                        $kindIconHtml = '<i class="bi bi-people-fill" aria-hidden="true"></i><span class="visually-hidden">Group</span>';
+                        $kindIconHtml = '<i class="bi bi-people-fill" aria-hidden="true"></i>';
                         $kindTitle = 'Group';
                     }
 
-                    echo '<tr>';
-                    echo '  <td title="' . h($kindTitle) . '">' . $kindIconHtml . '</td>';
-                    echo '  <td>' . $clusterRow['membersLabel'] . '</td>';
-                    echo '  <td class="text-end">' . (int)$clusterRow['memberCount'] . '</td>';
-                    echo '  <td class="text-end">' . h($clusterRow['connectedPairsLabel']) . '</td>';
-                    echo '  <td class="text-end">' . h($densityPct) . '</td>';
-                    echo '  <td class="text-end">' . (int)$clusterRow['pairSharedSum'] . '</td>';
-                    echo '  <td>' . h($clusterRow['lastTogetherTs'] > 0 ? gmdate('Y-m-d', $clusterRow['lastTogetherTs']) : '—') . '</td>';
-                    echo '  <td>' . $clusterRow['detailsHtml'] . '</td>';
-                    echo '</tr>';
+                    echo '      <div class="col-12 col-xl-6">';
+                    echo '      <div class="border rounded p-3 bg-light h-100">';
+                    echo '        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">';
+                    echo '          <div>';
+                    echo '            <div class="fw-semibold mb-1">' . $kindIconHtml . ' ' . h($kindTitle) . '</div>';
+                    echo '            <div>' . $clusterRow['membersLabel'] . '</div>';
+                    echo '          </div>';
+                    echo '          <div class="text-end small text-muted">Last activity<br>' . h($clusterRow['lastTogetherTs'] > 0 ? gmdate('Y-m-d', $clusterRow['lastTogetherTs']) : '—') . '</div>';
+                    echo '        </div>';
+                    echo '        <div class="d-flex flex-wrap gap-2 mt-3">';
+                    echo '          <span class="badge text-bg-secondary">Size: ' . (int)$clusterRow['memberCount'] . '</span>';
+                    echo '          <span class="badge text-bg-secondary">Connected: ' . h($clusterRow['connectedPairsLabel']) . '</span>';
+                    echo '          <span class="badge text-bg-secondary">Density: ' . h($densityPct) . '</span>';
+                    echo '          <span class="badge text-bg-secondary">Pair sum: ' . (int)$clusterRow['pairSharedSum'] . '</span>';
+                    echo '        </div>';
+                    echo '        <div class="small mt-3">' . $clusterRow['detailsHtml'] . '</div>';
+                    echo '      </div>';
+                    echo '      </div>';
                 }
 
-                echo '        </tbody></table>';
                 echo '    </div>';
             }
 

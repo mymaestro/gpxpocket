@@ -3,6 +3,9 @@
 Thumbs.db
 .vscode/
 
+# Backups
+*-backup.php
+
 # Build/runtime artifacts
 *.log
 *.tmp
