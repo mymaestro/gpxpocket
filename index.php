@@ -69,6 +69,17 @@ renderPageStart(array(
             </div>
           </div>
         </div>
+
+        <div class="col">
+          <div class="d-flex align-items-start gap-3">
+            <div class="fs-3 lh-1 text-primary"><i class="bi bi-map"></i></div>
+            <div>
+              <h5 class="mb-1">County progress</h5>
+              <p class="mb-2">Track visited counties from your My Finds Pocket Query and export missing counties.</p>
+              <a href="./gpxcounty-progress.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="row">
