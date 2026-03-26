@@ -6,6 +6,40 @@ require_once __DIR__ . '/includes/county_lookup_helpers.php';
 
 $extraHeadHtml = <<<'HTML'
   <script src="files/table2CSV.js"></script>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <style>
+    #countyProgressMap {
+      width: 100%;
+      height: 520px;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+    .county-map-legend {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.875rem;
+    }
+    .county-map-legend .swatch {
+      display: inline-block;
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 0.2rem;
+      margin-right: 0.35rem;
+      vertical-align: text-bottom;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+  </style>
 HTML;
 
 renderPageStart(array(
@@ -249,6 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $totalCountyCount = count($allCountiesByFips);
             $missingCountyCount = max(0, $totalCountyCount - $foundCountyCount);
             $coveragePct = $totalCountyCount > 0 ? ($foundCountyCount * 100 / $totalCountyCount) : 0;
+            $visitedFipsList = array_values(array_keys($countyFoundByFips));
 
             echo '<div class="alert alert-success" role="alert">Processed ' . count($allFindsByCode) . ' unique finds for ' . h($targetUsername) . '. Resolved ' . $resolvedFindCount . ' finds to county polygons.</div>';
             if ($message !== '') {
@@ -264,6 +299,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo '  <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Counties missing</div><div class="display-6">' . (int)$missingCountyCount . '</div></div></div></div>';
             echo '  <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Coverage</div><div class="display-6">' . h(number_format($coveragePct, 1)) . '%</div><div class="small text-muted">' . (int)$foundCountyCount . ' / ' . (int)$totalCountyCount . '</div></div></div></div>';
             echo '</div>';
+
+            if ($hasCountyDataset) {
+              echo '<div class="card mb-4">';
+              echo '  <div class="card-body">';
+              echo '    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">';
+              echo '      <h5 class="mb-0">Visited county map</h5>';
+              echo '      <div class="county-map-legend">';
+              echo '        <span><span class="swatch" style="background:#198754"></span>Visited</span>';
+              echo '        <span><span class="swatch" style="background:#dee2e6"></span>Missing</span>';
+              echo '      </div>';
+              echo '    </div>';
+              echo '    <div id="countyProgressMap" aria-label="County progress map"></div>';
+              echo '  </div>';
+              echo '</div>';
+
+              echo '<script>';
+              echo 'window.countyMapConfig = {';
+              echo 'geojsonUrl: ' . json_encode('data/us-counties.geojson') . ',';
+              echo 'visitedFips: ' . json_encode($visitedFipsList, JSON_UNESCAPED_SLASHES) . ',';
+              echo 'foundCountyCount: ' . (int)$foundCountyCount . ',';
+              echo 'missingCountyCount: ' . (int)$missingCountyCount . ',';
+              echo 'totalCountyCount: ' . (int)$totalCountyCount;
+              echo '};';
+              echo '</script>';
+            }
 
             echo '<div class="d-flex flex-wrap align-items-center gap-3 mb-3">';
             echo '  <div class="form-check">';
@@ -474,6 +534,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           separator: ','
         });
       });
+    }
+
+    if (window.countyMapConfig && $('#countyProgressMap').length && typeof L !== 'undefined') {
+      var mapConfig = window.countyMapConfig;
+      var visitedFipsSet = {};
+      (mapConfig.visitedFips || []).forEach(function (fips) {
+        visitedFipsSet[String(fips)] = true;
+      });
+
+      var countyMap = L.map('countyProgressMap', {
+        preferCanvas: true,
+        zoomSnap: 0.5
+      }).setView([37.8, -96], 4);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 9,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(countyMap);
+
+      function normalizeFips(feature) {
+        if (!feature) {
+          return '';
+        }
+
+        var featureId = feature.id != null ? String(feature.id) : '';
+        if (/^\d{5}$/.test(featureId)) {
+          return featureId;
+        }
+
+        var props = feature.properties || {};
+        var candidates = [props.GEOID, props.geoid, props.FIPS, props.fips, props.id, props.ID];
+        for (var i = 0; i < candidates.length; i++) {
+          var digits = String(candidates[i] == null ? '' : candidates[i]).replace(/\D+/g, '');
+          if (digits.length === 5) {
+            return digits;
+          }
+        }
+
+        var state = String(props.STATEFP || props.statefp || props.STATE || props.state || '').replace(/\D+/g, '');
+        var county = String(props.COUNTYFP || props.countyfp || props.COUNTY || props.county || '').replace(/\D+/g, '');
+        if (state.length && county.length) {
+          return state.padStart(2, '0') + county.padStart(3, '0');
+        }
+
+        return '';
+      }
+
+      function countyStyle(feature) {
+        var fips = normalizeFips(feature);
+        var isVisited = !!visitedFipsSet[fips];
+        return {
+          color: '#8c959d',
+          weight: 0.35,
+          opacity: 0.9,
+          fillOpacity: isVisited ? 0.72 : 0.45,
+          fillColor: isVisited ? '#198754' : '#dee2e6'
+        };
+      }
+
+      fetch(mapConfig.geojsonUrl)
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('Map dataset request failed with status ' + response.status);
+          }
+          return response.json();
+        })
+        .then(function (geojsonData) {
+          var layer = L.geoJSON(geojsonData, {
+            style: countyStyle,
+            onEachFeature: function (feature, featureLayer) {
+              var props = feature.properties || {};
+              var fips = normalizeFips(feature);
+              var isVisited = !!visitedFipsSet[fips];
+              var countyName = props.NAME || props.name || '';
+              var stateCode = props.STATE || props.STATEFP || '';
+              var status = isVisited ? 'Visited' : 'Missing';
+              var popupParts = [];
+              popupParts.push('<strong>' + (countyName || 'County') + '</strong>');
+              if (stateCode) {
+                popupParts.push('State code: ' + stateCode);
+              }
+              if (fips) {
+                popupParts.push('FIPS: ' + fips);
+              }
+              popupParts.push('Status: ' + status);
+              featureLayer.bindPopup(popupParts.join('<br>'));
+            }
+          }).addTo(countyMap);
+
+          var bounds = layer.getBounds();
+          if (bounds && bounds.isValid()) {
+            countyMap.fitBounds(bounds.pad(0.01));
+          }
+        })
+        .catch(function (error) {
+          console.error(error);
+          $('#countyProgressMap').html('<div class="p-3 text-danger">Unable to load county map geometry.</div>');
+        });
     }
   });
   </script>
