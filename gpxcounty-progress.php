@@ -39,6 +39,12 @@ $extraHeadHtml = <<<'HTML'
       vertical-align: text-bottom;
       border: 1px solid rgba(0,0,0,0.2);
     }
+    .county-row-highlight {
+      outline: 2px solid #0d6efd;
+      outline-offset: -2px;
+      background-color: rgba(13, 110, 253, 0.12) !important;
+      transition: background-color 250ms ease-in-out;
+    }
   </style>
 HTML;
 
@@ -284,6 +290,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $missingCountyCount = max(0, $totalCountyCount - $foundCountyCount);
             $coveragePct = $totalCountyCount > 0 ? ($foundCountyCount * 100 / $totalCountyCount) : 0;
             $visitedFipsList = array_values(array_keys($countyFoundByFips));
+            $foundCountsByFips = array();
+            $maxFoundCount = 0;
+            foreach ($countyFoundByFips as $foundCountyFips => $foundCountyInfo) {
+              $foundCount = isset($foundCountyInfo['foundCount']) ? (int)$foundCountyInfo['foundCount'] : 0;
+              $foundCountsByFips[$foundCountyFips] = $foundCount;
+              if ($foundCount > $maxFoundCount) {
+                $maxFoundCount = $foundCount;
+              }
+            }
 
             echo '<div class="alert alert-success" role="alert">Processed ' . count($allFindsByCode) . ' unique finds for ' . h($targetUsername) . '. Resolved ' . $resolvedFindCount . ' finds to county polygons.</div>';
             if ($message !== '') {
@@ -304,9 +319,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               echo '<div class="card mb-4">';
               echo '  <div class="card-body">';
               echo '    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">';
-              echo '      <h5 class="mb-0">Visited county map</h5>';
+                echo '      <h5 class="mb-0">Visited county map - click to see data in the table</h5>';
               echo '      <div class="county-map-legend">';
-              echo '        <span><span class="swatch" style="background:#198754"></span>Visited</span>';
+                echo '        <span><span class="swatch" style="background:#7fd3a0"></span>Visited (fewer finds)</span>';
+                echo '        <span><span class="swatch" style="background:#0f5132"></span>Visited (more finds)</span>';
               echo '        <span><span class="swatch" style="background:#dee2e6"></span>Missing</span>';
               echo '      </div>';
               echo '    </div>';
@@ -318,6 +334,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               echo 'window.countyMapConfig = {';
               echo 'geojsonUrl: ' . json_encode('data/us-counties.geojson') . ',';
               echo 'visitedFips: ' . json_encode($visitedFipsList, JSON_UNESCAPED_SLASHES) . ',';
+                echo 'foundCountsByFips: ' . json_encode($foundCountsByFips, JSON_UNESCAPED_SLASHES) . ',';
+                echo 'maxFoundCount: ' . (int)$maxFoundCount . ',';
               echo 'foundCountyCount: ' . (int)$foundCountyCount . ',';
               echo 'missingCountyCount: ' . (int)$missingCountyCount . ',';
               echo 'totalCountyCount: ' . (int)$totalCountyCount;
@@ -370,7 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                echo '<tr data-status="' . strtolower($row['status']) . '" data-state="' . h($row['stateName']) . '">';
+                echo '<tr data-status="' . strtolower($row['status']) . '" data-state="' . h($row['stateName']) . '" data-fips="' . h($row['fips']) . '">';
                 echo '<td>' . h($row['status']) . '</td>';
                 echo '<td>' . h($row['stateName']) . '</td>';
                 echo '<td>' . h($row['countyName']) . '</td>';
@@ -539,18 +557,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (window.countyMapConfig && $('#countyProgressMap').length && typeof L !== 'undefined') {
       var mapConfig = window.countyMapConfig;
       var visitedFipsSet = {};
+      var foundCountsByFips = mapConfig.foundCountsByFips || {};
+      var maxFoundCount = Number(mapConfig.maxFoundCount || 0);
       (mapConfig.visitedFips || []).forEach(function (fips) {
         visitedFipsSet[String(fips)] = true;
       });
+
+      function getFindCountForFips(fips) {
+        var value = foundCountsByFips[String(fips)];
+        var parsed = Number(value || 0);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function getVisitedFillColor(findCount) {
+        if (maxFoundCount <= 1) {
+          return '#198754';
+        }
+
+        var ratio = Math.max(0, Math.min(1, findCount / maxFoundCount));
+        if (ratio <= 0.2) return '#b7e4c7';
+        if (ratio <= 0.4) return '#95d5b2';
+        if (ratio <= 0.6) return '#74c69d';
+        if (ratio <= 0.8) return '#40916c';
+        return '#1b4332';
+      }
 
       var countyMap = L.map('countyProgressMap', {
         preferCanvas: true,
         zoomSnap: 0.5
       }).setView([37.8, -96], 4);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd',
         maxZoom: 9,
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
       }).addTo(countyMap);
 
       function normalizeFips(feature) {
@@ -584,13 +624,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       function countyStyle(feature) {
         var fips = normalizeFips(feature);
         var isVisited = !!visitedFipsSet[fips];
+        var findCount = getFindCountForFips(fips);
         return {
           color: '#8c959d',
           weight: 0.35,
           opacity: 0.9,
           fillOpacity: isVisited ? 0.72 : 0.45,
-          fillColor: isVisited ? '#198754' : '#dee2e6'
+          fillColor: isVisited ? getVisitedFillColor(findCount) : '#dee2e6'
         };
+      }
+
+      function focusCountyRow(fips) {
+        if (!$table.length || !fips) {
+          return;
+        }
+
+        if ($showMissing.length) {
+          $showMissing.prop('checked', true);
+        }
+        if ($showFound.length) {
+          $showFound.prop('checked', true);
+        }
+        if ($stateFilter.length) {
+          $stateFilter.val('');
+        }
+        if (typeof applyCountyFilters === 'function') {
+          applyCountyFilters();
+        }
+
+        $table.find('tbody tr').removeClass('county-row-highlight');
+        var $targetRow = $table.find('tbody tr[data-fips="' + String(fips).replace(/"/g, '\\"') + '"]');
+        if (!$targetRow.length) {
+          return;
+        }
+
+        $targetRow.addClass('county-row-highlight');
+        var rowElement = $targetRow.get(0);
+        if (rowElement && typeof rowElement.scrollIntoView === 'function') {
+          rowElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+
+        setTimeout(function () {
+          $targetRow.removeClass('county-row-highlight');
+        }, 2200);
       }
 
       fetch(mapConfig.geojsonUrl)
@@ -607,6 +683,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               var props = feature.properties || {};
               var fips = normalizeFips(feature);
               var isVisited = !!visitedFipsSet[fips];
+              var findCount = getFindCountForFips(fips);
               var countyName = props.NAME || props.name || '';
               var stateCode = props.STATE || props.STATEFP || '';
               var status = isVisited ? 'Visited' : 'Missing';
@@ -619,7 +696,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 popupParts.push('FIPS: ' + fips);
               }
               popupParts.push('Status: ' + status);
+              popupParts.push('Find count: ' + findCount);
               featureLayer.bindPopup(popupParts.join('<br>'));
+
+              featureLayer.on('click', function () {
+                focusCountyRow(fips);
+              });
             }
           }).addTo(countyMap);
 
