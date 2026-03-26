@@ -3,6 +3,22 @@ require_once __DIR__ . '/includes/layout.php';
 
 $extraHeadHtml = <<<'HTML'
   <script src="files/table2CSV.js"></script>
+  <style>
+    .gpx2csv-table .hint-col {
+      width: 220px;
+      max-width: 220px;
+    }
+
+    .gpx2csv-table td.hint-col {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .gpx2csv-table .logs-col {
+      min-width: 260px;
+    }
+  </style>
   <script>
   $(document).ready(function () {
     $('table').each(function () {
@@ -54,6 +70,7 @@ renderPageStart(array(
 $message = '';
 require_once __DIR__ . '/includes/gpx_helpers.php';
 require_once __DIR__ . '/includes/gpx_format_helpers.php';
+require_once __DIR__ . '/includes/county_lookup_helpers.php';
 // Process the uploaded file
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $fileSource = '';
@@ -175,14 +192,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // if everything is ok, try to upload file
   }
   
-  if (isset($_POST['getCountyNames']) && $_POST['getCountyNames'] == 'yes') {
-      $getCountyNames = TRUE;
-  } else {
-      $getCountyNames = FALSE;
-  }
+    if (isset($_POST['excludeCountyInfo']) && $_POST['excludeCountyInfo'] == 'yes') {
+      $excludeCountyInfo = TRUE;
+    } else {
+      $excludeCountyInfo = FALSE;
+    }
+    $includeCountyInfo = !$excludeCountyInfo;
 
   $geoHttpContext = null;
-  if ($getCountyNames) {
+  $countyFeatures = array();
+  $countyLookupError = '';
+  $localCountyLookupEnabled = false;
+
+  if ($includeCountyInfo) {
+    $countyGeojsonPath = __DIR__ . '/data/us-counties.geojson';
+    $countyFeatures = loadCountyGeojsonFeatures($countyGeojsonPath, $countyLookupError);
+    $localCountyLookupEnabled = count($countyFeatures) > 0;
+
+    if (!$localCountyLookupEnabled && $countyLookupError !== '') {
+      $message .= 'Local county lookup unavailable (' . $countyLookupError . '). Falling back to GeoNames. ';
+    }
+
     $geoHttpContext = stream_context_create(array(
       'http' => array(
         'timeout' => 3,
@@ -196,16 +226,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tableId = preg_replace('/[^A-Za-z0-9_.-]/', '_', $fileBase) . '.csv';
     $message = h($fileName) . ' ('. (int)$fileSize . ' bytes ) processed. <a href="#bottom">Jump to the bottom</a>' . "\n";
     echo '    <div class="alert alert-success" role="alert">' . $message . "</div>\n";
-    echo '    <table class="table table-striped" id="'. h($tableId) . '">
+    echo '    <div class="table-responsive">
+      <table class="table table-striped gpx2csv-table" id="'. h($tableId) . '">
         <thead>
           <tr>
             <th scope="col">Code</th>
             <th scope="col">Name</th>
             <th scope="col">Latitude/Longitude</th>
+            ' . ($includeCountyInfo ? '<th scope="col">County/State</th>' : '') . '
             <th scope="col">Size</th>
             <th scope="col">D/T</th>
-            <th scope="col">Hint</th>
-            <th scope="col">Logs</th>
+            <th scope="col" class="hint-col">Hint</th>
+            <th scope="col" class="logs-col">Logs</th>
           </tr>
         </thead>
         <tbody>' . "\n";
@@ -235,8 +267,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cachehint = $cacheinfo->cache->encoded_hints;     // Hint (not encrypted)
     $cacheURLSafe = filter_var((string)$cacheURL, FILTER_VALIDATE_URL) ? (string)$cacheURL : '#';
 
-    if ($getCountyNames) {
-    // Get region (state, county) information from Geonames
+    $geoState = '';
+    $geoCounty = '';
+    if ($includeCountyInfo && $localCountyLookupEnabled) {
+      $countyMatch = findCountyByPoint($cachelat, $cachelon, $countyFeatures);
+      if ($countyMatch !== null) {
+        $geoState = isset($countyMatch['stateName']) ? trim((string)$countyMatch['stateName']) : '';
+        $geoCounty = isset($countyMatch['countyName']) ? trim((string)$countyMatch['countyName']) : '';
+      }
+    }
+
+    if ($includeCountyInfo && ($geoCounty === '' || $geoState === '')) {
+    // Fallback to GeoNames when local county dataset is unavailable or no county match is found.
         $geonamesURL = 'http://api.geonames.org/findNearbyPlaceName?';
         $param = http_build_query(array(
             'lat' => (string)$cachelat,
@@ -247,8 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $url = $geonamesURL . $param;
         $geonamesResponse = @file_get_contents($url, false, $geoHttpContext);
         $geonames = ($geonamesResponse !== false) ? @simplexml_load_string($geonamesResponse) : false;
-        $geoState = '';
-        $geoCounty = '';
         if ($geonames !== false && isset($geonames->geoname)) {
           $geoState = (string)$geonames->geoname->adminName1;     // State: "Texas"
           $geoCounty = (string)$geonames->geoname->adminName2;    // County: "Bell"
@@ -261,15 +301,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       echo '            <td><a href="'.h($cacheURLSafe).'" target="_blank" rel="noopener noreferrer">'.h($cacheGC)."</a></td>\n";
       echo '            <td>'.h($cachename)."</td>\n";
       //echo '            <td>'.$cachelatlon.'<br><a href="https://nominatim.openstreetmap.org/search.php?q='.$cachelatlon.'&polygon_geojson=1&viewbox=">Map</a>'."</td>\n";
-      echo '            <td><a href="https://nominatim.openstreetmap.org/search.php?q='.$cacheMapQuery.'&polygon_geojson=1&viewbox=" target="_blank" rel="noopener noreferrer">'.h($cachelatlon)."</a>\n";
-      if ($getCountyNames && ($geoCounty !== '' || $geoState !== '')) {
-        echo "<br>".h($geoCounty) . " county, ". h($geoState);
+      echo '            <td><a href="https://nominatim.openstreetmap.org/search.php?q='.$cacheMapQuery.'&polygon_geojson=1&viewbox=" target="_blank" rel="noopener noreferrer">'.h($cachelatlon)."</a></td>\n";
+      if ($includeCountyInfo) {
+        $countyStateLabel = '—';
+        if ($geoCounty !== '' && $geoState !== '') {
+          $countyStateLabel = $geoCounty . ', ' . $geoState;
+        } elseif ($geoCounty !== '') {
+          $countyStateLabel = $geoCounty;
+        } elseif ($geoState !== '') {
+          $countyStateLabel = $geoState;
+        }
+        echo '            <td>'.h($countyStateLabel)."</td>\n";
       }
-      echo "</td>\n";
       echo '            <td>'.h($cachecontainer)."</td>\n";
       echo '            <td>'.h($cachedifficulty).' / '.h($cacheterrain)."</td>\n";
-      echo '            <td>'.h($cachehint)."</td>\n";
-      echo '            <td>';
+      echo '            <td class="hint-col">'.h($cachehint)."</td>\n";
+      echo '            <td class="logs-col">';
 
       $cachelogs = $cacheinfo->cache->logs;  // Last 5 cache logs
       $lastfoundepoch = 0;                   // Keep the most recent log's date
@@ -337,6 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
     echo '        </tbody>
       </table>
+      </div>
       <a id="bottom"></a>
     ';
 
@@ -365,8 +413,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div id="uploadingStatus" class="small mt-2 text-primary d-none">Uploading...</div>
         </div>
         <div class="form-check mt-3 text-start">
-          <input class="form-check-input" type="checkbox" name="getCountyNames" id="getCountyNames" value="yes">
-          <label class="form-check-label" for="getCountyNames">Get county names (takes way longer!)</label>
+          <input class="form-check-input" type="checkbox" name="excludeCountyInfo" id="excludeCountyInfo" value="yes">
+          <label class="form-check-label" for="excludeCountyInfo">Exclude county information</label>
         </div>
       </form>
     </div>
