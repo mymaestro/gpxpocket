@@ -6,10 +6,10 @@ Show progress toward county or region coverage based on the user's found caches.
 
 ## Core reality
 
-A Pocket Query around an area is not enough for full county progress. This feature needs:
+An area-based Pocket Query is not enough for full county progress. This feature needs:
 
 1. A complete or near-complete set of the user's finds.
-2. A reliable county/region boundary dataset for point-in-polygon lookups.
+2. A reliable county boundary dataset for point-in-polygon lookups.
 
 ## Data inputs
 
@@ -19,6 +19,10 @@ Supported upload formats for MVP:
 
 - One or more GPX files that include user-found caches.
 - ZIP bundles containing GPX files.
+
+Supported upload formats after MVP:
+
+- CSV exports containing coordinates (Latitude/Longitude or lat/lon headers).
 
 Recommended user workflow:
 
@@ -45,9 +49,9 @@ Preferred for US county challenge use:
 
 Recommended source for MVP (developer-friendly):
 
-- Direct GeoJSON from eric.clst.org: https://eric.clst.org/tech/usgeojson/
-- Use county files that already include FIPS-coded county identifiers.
-- Start with a medium resolution file (for example 5m) to balance precision and speed.
+- County geometry source for lookup: pinned local GeoJSON (Census-derived dataset recommended).
+- County geometry source for map rendering: https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json
+- Keep county matching keyed by FIPS identifiers.
 
 Source caveats:
 
@@ -64,8 +68,8 @@ Why local data:
 
 Fallback option:
 
-- Online reverse geocoding (GeoNames/Nominatim) only as a backup when local dataset is missing.
-- If direct GeoJSON quality is insufficient for a state/region, regenerate from current Census boundary files.
+- Online reverse geocoding (Nominatim) only as a backup when local lookup is unavailable.
+- If fallback is enabled, respect 1 request/second and set a custom User-Agent.
 
 ## Processing model
 
@@ -79,9 +83,13 @@ Fallback option:
 5. Aggregate results:
    - counties found
    - counties missing
-   - grouped by state/region
+   - grouped by state
 6. Render summary and export CSV:
    - state, county, found_count, first_found_date, sample_gc
+
+Optional cache layer:
+
+- Persist resolved coordinate-to-county mappings in SQLite to speed repeated uploads.
 
 ## User-visible outputs
 
@@ -94,6 +102,11 @@ Fallback option:
   - first found date
   - example cache
 - Missing-only view for challenge planning.
+
+Phase 2 outputs:
+
+- Leaflet map view that colors visited counties (green) and unvisited counties (light gray).
+- Total counter: visited counties out of 3,143 (US total).
 
 ## Accuracy and limitations
 
@@ -114,31 +127,62 @@ Phase 1 (MVP):
 - US counties only.
 - Upload one "My Finds" GPX/ZIP (with optional additional files for merge).
 - Detect Found it in logs.
-- Local boundary lookup.
+- Local boundary lookup as primary resolver.
 - Summary + table + CSV export.
+- Integrate with existing app navigation/layout.
 
 Phase 2:
 
-- Region presets (states, provinces, countries).
-- User profile/alias matching for Found it detection.
-- Progress over time chart.
+- Leaflet county map page/view.
+- SQLite cache for resolved coordinate-to-county mappings.
+- Optional Nominatim fallback path.
+- CSV input support.
 
 Phase 3:
 
-- Challenge templates (all counties in state, all counties in region set).
-- Import/export saved progress snapshots.
+- Region presets and challenge templates.
+- User profile/alias matching for Found it detection.
+- Progress over time chart.
+- Optional saved snapshots.
 
 ## Technical fit with current codebase
 
 - Reuse upload normalization and GPX parsing patterns from existing pages.
-- Add one new tool page (county-progress.php) and nav card link.
+- Add one new tool page (gpxcounty-progress.php) and nav + home card link.
 - Keep style consistent with Bootstrap card/table patterns already used.
+- Do not replace existing routing with standalone /process.php workflow; keep page integrated with current multi-tool app.
 
 ## Open decisions
 
 1. Primary audience:
-   - US counties first, or multi-country admin level 2 first?
+   - US counties first for MVP (recommended), multi-country later.
 2. Find detection rule:
-   - Strict (must match uploader username) vs permissive (any Found it log in GPX).
+   - Strict username match (recommended default) vs permissive mode toggle.
 3. Storage:
-   - Stateless per upload only, or optional saved snapshots?
+   - Stateless per upload for MVP; optional SQLite cache in Phase 2.
+4. CSV behavior:
+   - Treat CSV rows as already-confirmed finds by default, or require an explicit found-status column.
+
+## Architecture notes (unified)
+
+Stack:
+
+- PHP backend (no framework required).
+- Leaflet.js frontend for county map rendering.
+- Local GeoJSON county boundaries for primary county resolution and map overlays.
+- Optional SQLite for county lookup caching.
+- Optional Nominatim reverse geocoding fallback only.
+
+Implementation direction in this repository:
+
+- Keep existing app entry points and shared layout patterns.
+- Add `gpxcounty-progress.php` as the tool page.
+- Add supporting helpers under `includes/` if needed (county lookup, CSV parser, cache helpers).
+- `gpx...` naming is for top-level tool pages; helper files in `includes/` can follow existing helper naming conventions.
+- Add local data files under a dedicated data directory (for county GeoJSON and optional SQLite db).
+
+Operational notes:
+
+- If Nominatim fallback is enabled, send a custom User-Agent and throttle to 1 request/second.
+- Match visited counties by FIPS against map GeoJSON properties.
+- Keep local dev simple via `php -S localhost:8000`.
