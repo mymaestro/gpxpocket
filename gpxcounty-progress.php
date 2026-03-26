@@ -234,6 +234,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return strcasecmp($a['countyName'], $b['countyName']);
             });
 
+              $stateOptions = array();
+              foreach ($tableRows as $row) {
+                $stateName = trim((string)$row['stateName']);
+                if ($stateName === '') {
+                  continue;
+                }
+                $stateOptions[$stateName] = true;
+              }
+              $stateOptions = array_keys($stateOptions);
+              natcasesort($stateOptions);
+
             $foundCountyCount = count($countyFoundByFips);
             $totalCountyCount = count($allCountiesByFips);
             $missingCountyCount = max(0, $totalCountyCount - $foundCountyCount);
@@ -256,10 +267,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             echo '<div class="d-flex flex-wrap align-items-center gap-3 mb-3">';
             echo '  <div class="form-check">';
-            echo '    <input class="form-check-input" type="checkbox" id="missingOnlyToggle">';
-            echo '    <label class="form-check-label" for="missingOnlyToggle">Show missing counties only</label>';
+            echo '    <input class="form-check-input" type="checkbox" id="showMissingToggle" checked>';
+            echo '    <label class="form-check-label" for="showMissingToggle">Show missing counties</label>';
             echo '  </div>';
-            echo '  <button type="button" id="exportCountyCsv" class="btn btn-outline-primary btn-sm">Export CSV</button>';
+            echo '  <div class="form-check">';
+            echo '    <input class="form-check-input" type="checkbox" id="showFoundToggle" checked>';
+            echo '    <label class="form-check-label" for="showFoundToggle">Show found counties</label>';
+            echo '  </div>';
+            echo '  <label for="stateFilter" class="mb-0 small text-muted">State</label>';
+            echo '  <select id="stateFilter" class="form-select form-select-sm w-auto">';
+            echo '    <option value="">All states</option>';
+            foreach ($stateOptions as $stateOption) {
+              echo '    <option value="' . h($stateOption) . '">' . h($stateOption) . '</option>';
+            }
+            echo '  </select>';
+            echo '  <div class="small text-muted" id="countyFilterSummary"></div>';
+            echo '  <div class="ms-auto">';
+            echo '    <button type="button" id="exportCountyCsv" class="btn btn-outline-primary btn-sm">Export CSV</button>';
+            echo '  </div>';
             echo '</div>';
 
             echo '<div class="table-responsive">';
@@ -285,7 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                echo '<tr data-status="' . strtolower($row['status']) . '">';
+                echo '<tr data-status="' . strtolower($row['status']) . '" data-state="' . h($row['stateName']) . '">';
                 echo '<td>' . h($row['status']) . '</td>';
                 echo '<td>' . h($row['stateName']) . '</td>';
                 echo '<td>' . h($row['countyName']) . '</td>';
@@ -398,19 +423,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     var $table = $('#countyProgressTable\\.csv');
-    var $toggle = $('#missingOnlyToggle');
-    if ($table.length && $toggle.length) {
-      $toggle.on('change', function () {
-        var missingOnly = $(this).is(':checked');
+    var $showMissing = $('#showMissingToggle');
+    var $showFound = $('#showFoundToggle');
+    var $stateFilter = $('#stateFilter');
+    var $summary = $('#countyFilterSummary');
+
+    if ($table.length) {
+      function applyCountyFilters() {
+        var includeMissing = !$showMissing.length || $showMissing.is(':checked');
+        var includeFound = !$showFound.length || $showFound.is(':checked');
+        var selectedState = $stateFilter.length ? ($stateFilter.val() || '') : '';
+        var visibleCount = 0;
+        var totalCount = 0;
+
         $table.find('tbody tr').each(function () {
-          var status = ($(this).attr('data-status') || '').toLowerCase();
-          if (!missingOnly || status === 'missing') {
-            $(this).show();
+          totalCount++;
+          var $row = $(this);
+          var status = ($row.attr('data-status') || '').toLowerCase();
+          var state = $row.attr('data-state') || '';
+
+          var statusPass = (status === 'missing' && includeMissing) || (status === 'found' && includeFound);
+          var statePass = !selectedState || state === selectedState;
+          var show = statusPass && statePass;
+
+          if (show) {
+            visibleCount++;
+            $row.show();
           } else {
-            $(this).hide();
+            $row.hide();
           }
         });
-      });
+
+        if ($summary.length) {
+          $summary.text(visibleCount + ' of ' + totalCount + ' counties shown');
+        }
+      }
+
+      $showMissing.on('change', applyCountyFilters);
+      $showFound.on('change', applyCountyFilters);
+      $stateFilter.on('change', applyCountyFilters);
+      applyCountyFilters();
     }
 
     var $exportButton = $('#exportCountyCsv');
