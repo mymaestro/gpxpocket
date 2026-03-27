@@ -40,14 +40,51 @@ if (!function_exists('normalizeUploadArray')) {
     }
 }
 
+if (!function_exists('formatUploadBytesLabel')) {
+    function formatUploadBytesLabel($bytes) {
+        $bytes = (int)$bytes;
+        if ($bytes <= 0) {
+            return '0 B';
+        }
+
+        $units = array('B', 'KB', 'MB', 'GB');
+        $value = (float)$bytes;
+        $unitIndex = 0;
+
+        while ($value >= 1024 && $unitIndex < count($units) - 1) {
+            $value /= 1024;
+            $unitIndex++;
+        }
+
+        return number_format($value, $unitIndex === 0 ? 0 : 1) . ' ' . $units[$unitIndex];
+    }
+}
+
 if (!function_exists('extractGpxFromUpload')) {
     function extractGpxFromUpload($upload, $maxUploadBytes, &$message) {
-        if (!isset($upload['error']) || $upload['error'] !== UPLOAD_ERR_OK) {
+        $fileName = basename(isset($upload['name']) ? (string)$upload['name'] : 'uploaded file');
+        $uploadError = isset($upload['error']) ? (int)$upload['error'] : UPLOAD_ERR_NO_FILE;
+
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            switch ($uploadError) {
+                case UPLOAD_ERR_INI_SIZE:
+                case UPLOAD_ERR_FORM_SIZE:
+                    $message .= 'Upload too large for ' . $fileName . '. Increase PHP upload limits and try again. ';
+                    break;
+                case UPLOAD_ERR_PARTIAL:
+                    $message .= 'Upload was incomplete for ' . $fileName . '. Please retry. ';
+                    break;
+                case UPLOAD_ERR_NO_FILE:
+                    $message .= 'No file uploaded for ' . $fileName . '. ';
+                    break;
+                default:
+                    $message .= 'Upload failed for ' . $fileName . ' (error code ' . $uploadError . '). ';
+                    break;
+            }
             return null;
         }
 
         $fileSource = $upload['tmp_name'];
-        $fileName = basename($upload['name']);
         $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
         $fileSize = (int)$upload['size'];
         $fileZip = '';
@@ -58,7 +95,7 @@ if (!function_exists('extractGpxFromUpload')) {
         }
 
         if ($fileSize <= 0 || $fileSize > $maxUploadBytes) {
-            $message .= 'Invalid file size for ' . $fileName . '. ';
+            $message .= 'Invalid file size for ' . $fileName . ' (max ' . formatUploadBytesLabel($maxUploadBytes) . '). ';
             return null;
         }
 
@@ -89,14 +126,49 @@ if (!function_exists('extractGpxFromUpload')) {
                 }
 
                 if (endswith(strtolower($zfileBase), '.gpx') && !endswith(strtolower($zfileBase), 'wpts.gpx')) {
-                    $zfileContents = $zip->getFromIndex($f);
-                    if ($zfileContents !== false) {
+                    $zipStream = $zip->getStream($zfileName);
+                    if ($zipStream !== false) {
                         $tmpExtracted = tempnam($filePath, 'gpx_');
-                        if ($tmpExtracted !== false && file_put_contents($tmpExtracted, $zfileContents) !== false) {
-                            $fileZip = $fileSource;
-                            $fileSource = $tmpExtracted;
-                            $foundGpx = true;
-                            break;
+                        if ($tmpExtracted !== false) {
+                            $outHandle = fopen($tmpExtracted, 'wb');
+                            if ($outHandle !== false) {
+                                $streamOk = true;
+                                while (!feof($zipStream)) {
+                                    $chunk = fread($zipStream, 1024 * 1024);
+                                    if ($chunk === false) {
+                                        $streamOk = false;
+                                        break;
+                                    }
+                                    if ($chunk === '') {
+                                        continue;
+                                    }
+                                    if (fwrite($outHandle, $chunk) === false) {
+                                        $streamOk = false;
+                                        break;
+                                    }
+                                }
+
+                                fclose($outHandle);
+                                fclose($zipStream);
+
+                                if ($streamOk) {
+                                    $fileZip = $fileSource;
+                                    $fileSource = $tmpExtracted;
+                                    $foundGpx = true;
+                                    break;
+                                }
+
+                                if (file_exists($tmpExtracted)) {
+                                    unlink($tmpExtracted);
+                                }
+                            } else {
+                                fclose($zipStream);
+                                if (file_exists($tmpExtracted)) {
+                                    unlink($tmpExtracted);
+                                }
+                            }
+                        } else {
+                            fclose($zipStream);
                         }
                     }
                 }

@@ -45,6 +45,23 @@ $extraHeadHtml = <<<'HTML'
       background-color: rgba(13, 110, 253, 0.12) !important;
       transition: background-color 250ms ease-in-out;
     }
+    .county-processing-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1080;
+      padding: 1rem;
+    }
+    .county-processing-overlay.active {
+      display: flex;
+    }
+    .county-processing-overlay .overlay-card {
+      max-width: 520px;
+      width: 100%;
+    }
   </style>
 HTML;
 
@@ -88,7 +105,6 @@ function parseCountyFindsFromGpx($gpxPath, $displayName, $targetUsername, &$mess
 
     $targetNorm = strtolower(trim((string)$targetUsername));
     $findsByCode = array();
-
     foreach ($xml->wpt as $wpt) {
         $cacheCode = trim((string)$wpt->name);
         $typeParts = explode('|', (string)$wpt->type);
@@ -165,9 +181,21 @@ $countyFeatures = loadCountyGeojsonFeatures($geojsonPath, $geojsonMessage);
 $hasCountyDataset = count($countyFeatures) > 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    @ini_set('zlib.output_compression', '0');
+    if (!headers_sent()) {
+        header('X-Accel-Buffering: no');
+        header('Cache-Control: no-cache');
+    }
+    echo '<div class="alert alert-info" role="status">Processing upload. Large files can take a while; results will appear below when ready.</div>';
+    echo str_repeat(' ', 4096);
+    if (function_exists('ob_flush')) {
+        @ob_flush();
+    }
+    flush();
+
     $targetUsername = trim((string)(isset($_POST['targetUsername']) ? $_POST['targetUsername'] : ''));
     $uploads = normalizeUploadArray(isset($_FILES['countyFiles']) ? $_FILES['countyFiles'] : array());
-    $maxUploadBytes = 10 * 1024 * 1024;
+    $maxUploadBytes = 100 * 1024 * 1024;
 
     if ($targetUsername === '') {
         echo '<div class="alert alert-danger" role="alert">Enter your geocaching username for strict Found it matching.</div>';
@@ -304,7 +332,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($message !== '') {
                 echo '<div class="alert alert-warning" role="alert">' . h($message) . '</div>';
             }
-
             if (!$hasCountyDataset) {
                 echo '<div class="alert alert-warning" role="alert">County dataset not available. Add a GeoJSON file at <code>data/us-counties.geojson</code> to enable county matching.</div>';
             }
@@ -426,6 +453,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ';
 }
 ?>
+  <div id="countyProcessingOverlay" class="county-processing-overlay" aria-live="polite" aria-hidden="true">
+    <div class="card shadow overlay-card">
+      <div class="card-body text-center">
+        <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+        <div class="h6 mb-1">Processing county progress...</div>
+        <div class="small text-muted">Large GPX files can take a while. Results will appear automatically.</div>
+      </div>
+    </div>
+  </div>
   <script>
   $(function () {
     var $form = $('#countyForm');
@@ -433,6 +469,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     var $dropZone = $('#countyDropZone');
     var $selected = $('#countySelected');
     var $submit = $('#countySubmit');
+    var $processingOverlay = $('#countyProcessingOverlay');
 
     if ($form.length && $input.length && $dropZone.length) {
       function updateState() {
@@ -460,6 +497,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $submit.prop('disabled', true);
         $submit.attr('aria-busy', 'true');
         $submit.html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...');
+        if ($processingOverlay.length) {
+          $processingOverlay.addClass('active').attr('aria-hidden', 'false');
+        }
       });
 
       $dropZone.on('click', function () { $input.trigger('click'); });
