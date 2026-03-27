@@ -39,12 +39,6 @@ $extraHeadHtml = <<<'HTML'
       vertical-align: text-bottom;
       border: 1px solid rgba(0,0,0,0.2);
     }
-    .county-row-highlight {
-      outline: 2px solid #0d6efd;
-      outline-offset: -2px;
-      background-color: rgba(13, 110, 253, 0.12) !important;
-      transition: background-color 250ms ease-in-out;
-    }
     .county-processing-overlay {
       position: fixed;
       inset: 0;
@@ -186,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('X-Accel-Buffering: no');
         header('Cache-Control: no-cache');
     }
-    echo '<div class="alert alert-info" role="status">Processing upload. Large files can take a while; results will appear below when ready.</div>';
+    echo '<div class="alert alert-info alert-dismissible fade show" role="status">Processing upload. Large files can take a while; results will appear below when ready.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
     echo str_repeat(' ', 4096);
     if (function_exists('ob_flush')) {
         @ob_flush();
@@ -328,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               }
             }
 
-            echo '<div class="alert alert-success" role="alert">Processed ' . count($allFindsByCode) . ' unique finds for ' . h($targetUsername) . '. Resolved ' . $resolvedFindCount . ' finds to county polygons.</div>';
+            echo '<div class="alert alert-success alert-dismissible fade show" role="alert">Processed ' . count($allFindsByCode) . ' unique finds for ' . h($targetUsername) . '. Resolved ' . $resolvedFindCount . ' finds to county polygons.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
             if ($message !== '') {
                 echo '<div class="alert alert-warning" role="alert">' . h($message) . '</div>';
             }
@@ -346,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               echo '<div class="card mb-4">';
               echo '  <div class="card-body">';
               echo '    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">';
-                echo '      <h5 class="mb-0">Visited county map - click to see data in the table</h5>';
+                echo '      <h5 class="mb-0">Visited county map</h5>';
               echo '      <div class="county-map-legend">';
                 echo '        <span><span class="swatch" style="background:#7fd3a0"></span>Visited (fewer finds)</span>';
                 echo '        <span><span class="swatch" style="background:#0f5132"></span>Visited (more finds)</span>';
@@ -633,6 +627,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
       }).addTo(countyMap);
 
+      var stateNameByFips = {
+        '01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California',
+        '08':'Colorado','09':'Connecticut','10':'Delaware','11':'District of Columbia',
+        '12':'Florida','13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois',
+        '18':'Indiana','19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana',
+        '23':'Maine','24':'Maryland','25':'Massachusetts','26':'Michigan','27':'Minnesota',
+        '28':'Mississippi','29':'Missouri','30':'Montana','31':'Nebraska','32':'Nevada',
+        '33':'New Hampshire','34':'New Jersey','35':'New Mexico','36':'New York',
+        '37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma','41':'Oregon',
+        '42':'Pennsylvania','44':'Rhode Island','45':'South Carolina','46':'South Dakota',
+        '47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont','51':'Virginia',
+        '53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming',
+        '60':'American Samoa','66':'Guam','69':'Northern Mariana Islands',
+        '72':'Puerto Rico','78':'U.S. Virgin Islands'
+      };
+
+      function resolveStateName(feature, fips) {
+        var props = feature.properties || {};
+        var name = props.STATE_NAME || props.state_name || props.StateName || '';
+        if (name) { return name; }
+        var stateFips = fips.length >= 2 ? fips.substring(0, 2) : '';
+        return stateNameByFips[stateFips] || stateFips;
+      }
+
       function normalizeFips(feature) {
         if (!feature) {
           return '';
@@ -674,41 +692,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         };
       }
 
-      function focusCountyRow(fips) {
-        if (!$table.length || !fips) {
-          return;
-        }
-
-        if ($showMissing.length) {
-          $showMissing.prop('checked', true);
-        }
-        if ($showFound.length) {
-          $showFound.prop('checked', true);
-        }
-        if ($stateFilter.length) {
-          $stateFilter.val('');
-        }
-        if (typeof applyCountyFilters === 'function') {
-          applyCountyFilters();
-        }
-
-        $table.find('tbody tr').removeClass('county-row-highlight');
-        var $targetRow = $table.find('tbody tr[data-fips="' + String(fips).replace(/"/g, '\\"') + '"]');
-        if (!$targetRow.length) {
-          return;
-        }
-
-        $targetRow.addClass('county-row-highlight');
-        var rowElement = $targetRow.get(0);
-        if (rowElement && typeof rowElement.scrollIntoView === 'function') {
-          rowElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        }
-
-        setTimeout(function () {
-          $targetRow.removeClass('county-row-highlight');
-        }, 2200);
-      }
-
       fetch(mapConfig.geojsonUrl)
         .then(function (response) {
           if (!response.ok) {
@@ -725,12 +708,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               var isVisited = !!visitedFipsSet[fips];
               var findCount = getFindCountForFips(fips);
               var countyName = props.NAME || props.name || '';
-              var stateCode = props.STATE || props.STATEFP || '';
+              var stateName = resolveStateName(feature, fips);
               var status = isVisited ? 'Visited' : 'Missing';
               var popupParts = [];
               popupParts.push('<strong>' + (countyName || 'County') + '</strong>');
-              if (stateCode) {
-                popupParts.push('State code: ' + stateCode);
+              if (stateName) {
+                popupParts.push('State: ' + stateName);
               }
               if (fips) {
                 popupParts.push('FIPS: ' + fips);
@@ -738,10 +721,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               popupParts.push('Status: ' + status);
               popupParts.push('Find count: ' + findCount);
               featureLayer.bindPopup(popupParts.join('<br>'));
-
-              featureLayer.on('click', function () {
-                focusCountyRow(fips);
-              });
             }
           }).addTo(countyMap);
 
