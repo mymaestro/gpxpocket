@@ -8,7 +8,39 @@ require_once __DIR__ . '/includes/delorme_lookup_helpers.php';
 
 $extraHeadHtml = <<<'HTML'
   <script src="files/table2CSV.js"></script>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
   <style>
+    #deLormeProgressMap {
+      width: 100%;
+      height: 520px;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+    .delorme-map-legend {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.875rem;
+    }
+    .delorme-map-legend .swatch {
+      display: inline-block;
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 0.2rem;
+      margin-right: 0.35rem;
+      vertical-align: text-bottom;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
     .delorme-processing-overlay {
       position: fixed;
       inset: 0;
@@ -199,6 +231,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $debugStats['resolved_finds'] = $resolvedFindCount;
             $debugStats['matched_pages'] = $foundPageCount;
             $debugStats['total_pages'] = $totalPageCount;
+            $visitedIdsList = array_values(array_keys($pagesFoundById));
+            $foundCountsByPageId = array();
+            $maxFoundCount = 0;
+            foreach ($pagesFoundById as $foundPageId => $foundPageInfo) {
+              $foundCount = isset($foundPageInfo['foundCount']) ? (int)$foundPageInfo['foundCount'] : 0;
+              $foundCountsByPageId[$foundPageId] = $foundCount;
+              if ($foundCount > $maxFoundCount) {
+                $maxFoundCount = $foundCount;
+              }
+            }
 
             echo '<div class="alert alert-success alert-dismissible fade show" role="alert">Processed ' . count($allFindsByCode) . ' unique finds for ' . h($targetUsername) . '. Resolved ' . $resolvedFindCount . ' finds to DeLorme pages.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
             if ($message !== '') {
@@ -213,6 +255,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo '  <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Pages missing</div><div class="display-6">' . (int)$missingPageCount . '</div></div></div></div>';
             echo '  <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Coverage</div><div class="display-6">' . h(number_format($coveragePct, 1)) . '%</div><div class="small text-muted">' . (int)$foundPageCount . ' / ' . (int)$totalPageCount . '</div></div></div></div>';
             echo '</div>';
+
+            if ($hasDeLormeDataset) {
+              echo '<div class="card mb-4">';
+              echo '  <div class="card-body">';
+              echo '    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">';
+              echo '      <h5 class="mb-0">Visited pages map</h5>';
+              echo '      <div class="delorme-map-legend">';
+              echo '        <span><span class="swatch" style="background:#7fd3a0"></span>Visited (fewer finds)</span>';
+              echo '        <span><span class="swatch" style="background:#0f5132"></span>Visited (more finds)</span>';
+              echo '        <span><span class="swatch" style="background:#dee2e6"></span>Missing</span>';
+              echo '      </div>';
+              echo '    </div>';
+              echo '    <div id="deLormeProgressMap" aria-label="DeLorme page progress map"></div>';
+              echo '  </div>';
+              echo '</div>';
+
+              echo '<script>';
+              echo 'window.deLormeMapConfig = {';
+              echo 'indexUrl: ' . json_encode('data/delorme-pages.json') . ',';
+              echo 'visitedIds: ' . json_encode($visitedIdsList, JSON_UNESCAPED_SLASHES) . ',';
+              echo 'foundCountsByPageId: ' . json_encode($foundCountsByPageId, JSON_UNESCAPED_SLASHES) . ',';
+              echo 'maxFoundCount: ' . (int)$maxFoundCount;
+              echo '};';
+              echo '</script>';
+            }
 
             echo '<div class="d-flex flex-wrap align-items-center gap-3 mb-3">';
             echo '  <div class="form-check">';
@@ -447,6 +514,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           separator: ','
         });
       });
+    }
+
+    if (window.deLormeMapConfig && $('#deLormeProgressMap').length && typeof L !== 'undefined') {
+      var mapConfig = window.deLormeMapConfig;
+      var visitedIdSet = {};
+      var foundCountsByPageId = mapConfig.foundCountsByPageId || {};
+      var maxFoundCount = Number(mapConfig.maxFoundCount || 0);
+      (mapConfig.visitedIds || []).forEach(function (id) {
+        visitedIdSet[String(id)] = true;
+      });
+
+      function getFindCountForPage(id) {
+        var value = foundCountsByPageId[String(id)];
+        var parsed = Number(value || 0);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function getVisitedFillColor(findCount) {
+        if (maxFoundCount <= 1) {
+          return '#198754';
+        }
+        var ratio = Math.max(0, Math.min(1, findCount / maxFoundCount));
+        if (ratio <= 0.2) return '#b7e4c7';
+        if (ratio <= 0.4) return '#95d5b2';
+        if (ratio <= 0.6) return '#74c69d';
+        if (ratio <= 0.8) return '#40916c';
+        return '#1b4332';
+      }
+
+      var deLormeMap = L.map('deLormeProgressMap', {
+        preferCanvas: true,
+        zoomSnap: 0.5
+      }).setView([37.8, -96], 4);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd',
+        maxZoom: 9,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      }).addTo(deLormeMap);
+
+      fetch(mapConfig.indexUrl)
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('Map dataset request failed with status ' + response.status);
+          }
+          return response.json();
+        })
+        .then(function (indexData) {
+          var pages = Array.isArray(indexData) ? indexData : [];
+          var layers = [];
+          pages.forEach(function (page) {
+            var id = String(page.id);
+            var bbox = page.bbox; // [lonMin, latMin, lonMax, latMax]
+            if (!bbox || bbox.length < 4) { return; }
+            var isVisited = !!visitedIdSet[id];
+            var findCount = getFindCountForPage(id);
+            var bounds = [[bbox[1], bbox[0]], [bbox[3], bbox[2]]];
+            var rect = L.rectangle(bounds, {
+              color: '#8c959d',
+              weight: 0.5,
+              opacity: 0.9,
+              fillOpacity: isVisited ? 0.72 : 0.45,
+              fillColor: isVisited ? getVisitedFillColor(findCount) : '#dee2e6'
+            });
+            var status = isVisited ? 'Visited' : 'Missing';
+            rect.bindPopup(
+              '<strong>' + page.bookName + ' p.\u200b' + page.page + '</strong>' +
+              '<br>State: ' + page.stateName +
+              '<br>Status: ' + status +
+              '<br>Find count: ' + findCount
+            );
+            layers.push(rect);
+          });
+          var group = L.featureGroup(layers).addTo(deLormeMap);
+          var groupBounds = group.getBounds();
+          if (groupBounds && groupBounds.isValid()) {
+            deLormeMap.fitBounds(groupBounds.pad(0.01));
+          }
+        })
+        .catch(function (error) {
+          console.error(error);
+          $('#deLormeProgressMap').html('<div class="p-3 text-danger">Unable to load DeLorme map data.</div>');
+        });
     }
   });
   </script>
