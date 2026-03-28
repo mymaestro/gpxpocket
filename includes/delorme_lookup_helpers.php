@@ -38,7 +38,7 @@ if (!function_exists('deLormeBookSlug')) {
 }
 
 // Load polygon data for one book from $dataDir.
-// Returns array keyed by page id => polygon (array of [lon, lat] pairs).
+// Returns array keyed by page id => list of polygon rings (arrays of [lon, lat] pairs).
 if (!function_exists('loadDeLormeBookPolygons')) {
     function loadDeLormeBookPolygons($bookName, $dataDir) {
         $slug = deLormeBookSlug($bookName);
@@ -60,7 +60,10 @@ if (!function_exists('loadDeLormeBookPolygons')) {
         $indexed = array();
         foreach ($decoded['pages'] as $p) {
             if (isset($p['id'], $p['polygon'])) {
-                $indexed[$p['id']] = $p['polygon'];
+                if (!isset($indexed[$p['id']])) {
+                    $indexed[$p['id']] = array();
+                }
+                $indexed[$p['id']][] = $p['polygon'];
             }
         }
 
@@ -124,14 +127,16 @@ if (!function_exists('matchDeLormePagesToFinds')) {
                     }
 
                     $pageId = $candidate['id'];
-                    if (!isset($polygons[$pageId])) {
+                    if (!isset($polygons[$pageId]) || !is_array($polygons[$pageId])) {
                         continue;
                     }
 
-                    if (countyLookupPointInRing($lon, $lat, $polygons[$pageId])) {
-                        $results[$code] = $candidate;
-                        $matched = true;
-                        break;
+                    foreach ($polygons[$pageId] as $polygonRing) {
+                        if (countyLookupPointInRing($lon, $lat, $polygonRing)) {
+                            $results[$code] = $candidate;
+                            $matched = true;
+                            break 2;
+                        }
                     }
                 }
 
