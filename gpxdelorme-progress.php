@@ -562,7 +562,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           return response.json();
         })
         .then(function (indexData) {
-          var pages = Array.isArray(indexData) ? indexData : [];
+          var pages = [];
+          if (Array.isArray(indexData)) {
+            pages = indexData;
+          } else if (indexData && Array.isArray(indexData.pages)) {
+            pages = indexData.pages;
+          }
           var layers = [];
           pages.forEach(function (page) {
             var id = String(page.id);
