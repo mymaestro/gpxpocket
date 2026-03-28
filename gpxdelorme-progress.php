@@ -140,6 +140,7 @@ function parseDeLormeFindsFromGpx($gpxPath, $displayName, $targetUsername, &$mes
 $message = '';
 $deLormeMessage = '';
 $deLormePath = __DIR__ . '/data/delorme-pages.json';
+$deLormeDataDir = __DIR__ . '/data/delorme';
 $deLormePages = loadDeLormePages($deLormePath, $deLormeMessage);
 $hasDeLormeDataset = count($deLormePages) > 0;
 
@@ -195,12 +196,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $resolvedFindCount = 0;
 
             if ($hasDeLormeDataset) {
-                foreach ($allFindsByCode as $find) {
-                    $page = findDeLormePageByPoint($find['lat'], $find['lon'], $deLormePages);
-                    if ($page === null) {
-                        continue;
-                    }
+                $matchedPages = matchDeLormePagesToFinds($allFindsByCode, $deLormePages, $deLormeDataDir);
 
+                foreach ($matchedPages as $cacheCode => $page) {
+                    $find = $allFindsByCode[$cacheCode];
                     $pageId = $page['id'];
                     $resolvedFindCount++;
 

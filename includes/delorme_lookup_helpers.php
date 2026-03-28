@@ -1,26 +1,28 @@
 <?php
 
+// Load the bbox-only index from delorme-pages.json.
+// Polygons are NOT included; use matchDeLormePagesToFinds() for full matching.
 if (!function_exists('loadDeLormePages')) {
-    function loadDeLormePages($jsonPath, &$errorMessage) {
-        if (!file_exists($jsonPath)) {
-            $errorMessage = 'DeLorme pages dataset not found at ' . $jsonPath . '.';
+    function loadDeLormePages($indexPath, &$errorMessage) {
+        if (!file_exists($indexPath)) {
+            $errorMessage = 'DeLorme page index not found at ' . $indexPath . '.';
             return array();
         }
 
-        $raw = @file_get_contents($jsonPath);
+        $raw = @file_get_contents($indexPath);
         if ($raw === false || trim($raw) === '') {
-            $errorMessage = 'Unable to read DeLorme pages file.';
+            $errorMessage = 'Unable to read DeLorme page index.';
             return array();
         }
 
         $decoded = json_decode($raw, true);
         if (!is_array($decoded) || !isset($decoded['pages']) || !is_array($decoded['pages'])) {
-            $errorMessage = 'DeLorme pages file is not valid (missing pages array).';
+            $errorMessage = 'DeLorme page index is not valid (missing pages array).';
             return array();
         }
 
         if (count($decoded['pages']) < 1) {
-            $errorMessage = 'DeLorme pages file loaded but contains no pages.';
+            $errorMessage = 'DeLorme page index contains no pages.';
             return array();
         }
 
@@ -28,29 +30,111 @@ if (!function_exists('loadDeLormePages')) {
     }
 }
 
-if (!function_exists('findDeLormePageByPoint')) {
-    // Requires county_lookup_helpers.php to be loaded first for countyLookupPointInRing.
-    // Polygons in delorme-pages.json are stored as [lon, lat] pairs matching GeoJSON order.
-    function findDeLormePageByPoint($lat, $lon, $pages) {
-        $lat = (float)$lat;
-        $lon = (float)$lon;
+// Return the filesystem slug for a book name, matching the filenames under data/delorme/.
+if (!function_exists('deLormeBookSlug')) {
+    function deLormeBookSlug($bookName) {
+        return strtolower(preg_replace('/\s+/', '-', trim((string)$bookName)));
+    }
+}
 
-        foreach ($pages as $page) {
-            // bbox prefilter: [lonMin, latMin, lonMax, latMax]
-            if (isset($page['bbox']) && is_array($page['bbox']) && count($page['bbox']) === 4) {
-                if ($lon < $page['bbox'][0] || $lon > $page['bbox'][2] ||
-                    $lat < $page['bbox'][1] || $lat > $page['bbox'][3]) {
+// Load polygon data for one book from $dataDir, cached for the lifetime of the request.
+// Returns array keyed by page id => polygon (array of [lon, lat] pairs).
+if (!function_exists('loadDeLormeBookPolygons')) {
+    function loadDeLormeBookPolygons($bookName, $dataDir) {
+        static $cache = array();
+        if (array_key_exists($bookName, $cache)) {
+            return $cache[$bookName];
+        }
+
+        $slug = deLormeBookSlug($bookName);
+        $path = rtrim($dataDir, '/') . '/' . $slug . '.json';
+        if (!file_exists($path)) {
+            $cache[$bookName] = array();
+            return array();
+        }
+
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            $cache[$bookName] = array();
+            return array();
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) || !isset($decoded['pages'])) {
+            $cache[$bookName] = array();
+            return array();
+        }
+
+        $indexed = array();
+        foreach ($decoded['pages'] as $p) {
+            if (isset($p['id'], $p['polygon'])) {
+                $indexed[$p['id']] = $p['polygon'];
+            }
+        }
+
+        $cache[$bookName] = $indexed;
+        return $indexed;
+    }
+}
+
+// Batch-match an array of finds to DeLorme pages.
+//
+// $findsByCode  — map of cacheCode => ['lat'=>..., 'lon'=>...] (and other fields)
+// $indexPages   — result of loadDeLormePages() (bbox metadata only, no polygons)
+// $dataDir      — path to the directory containing per-book polygon JSON files
+//
+// Returns map of cacheCode => matched page metadata array.
+// Requires county_lookup_helpers.php (countyLookupPointInRing).
+if (!function_exists('matchDeLormePagesToFinds')) {
+    function matchDeLormePagesToFinds($findsByCode, $indexPages, $dataDir) {
+        // Phase 1: bbox prefilter — gather per-find candidates and note which books are needed.
+        $candidatesByCode = array();
+        $neededBooks = array();
+
+        foreach ($findsByCode as $code => $find) {
+            $lat = (float)$find['lat'];
+            $lon = (float)$find['lon'];
+
+            foreach ($indexPages as $page) {
+                if (!isset($page['bbox']) || count($page['bbox']) < 4) {
                     continue;
                 }
+                $bbox = $page['bbox'];
+                if ($lon < $bbox[0] || $lon > $bbox[2] || $lat < $bbox[1] || $lat > $bbox[3]) {
+                    continue;
+                }
+                $candidatesByCode[$code][] = $page;
+                $neededBooks[$page['bookName']] = true;
             }
+        }
 
-            if (isset($page['polygon']) && is_array($page['polygon'])) {
-                if (countyLookupPointInRing($lon, $lat, $page['polygon'])) {
-                    return $page;
+        // Phase 2: load polygon data only for the books that have candidates.
+        foreach (array_keys($neededBooks) as $bookName) {
+            loadDeLormeBookPolygons($bookName, $dataDir);
+        }
+
+        // Phase 3: point-in-polygon test on the candidates.
+        $results = array();
+        foreach ($findsByCode as $code => $find) {
+            if (!isset($candidatesByCode[$code])) {
+                continue;
+            }
+            $lat = (float)$find['lat'];
+            $lon = (float)$find['lon'];
+
+            foreach ($candidatesByCode[$code] as $candidate) {
+                $polygons = loadDeLormeBookPolygons($candidate['bookName'], $dataDir);
+                $pageId = $candidate['id'];
+                if (!isset($polygons[$pageId])) {
+                    continue;
+                }
+                if (countyLookupPointInRing($lon, $lat, $polygons[$pageId])) {
+                    $results[$code] = $candidate;
+                    break;
                 }
             }
         }
 
-        return null;
+        return $results;
     }
 }
