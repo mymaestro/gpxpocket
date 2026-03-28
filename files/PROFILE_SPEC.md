@@ -27,10 +27,12 @@ The UI should feel modern and scannable: section cards, sticky section nav, resp
 ## Input model
 ### Required (MVP)
 - One or more GPX/ZIP files containing finds/logs with dates and cache metadata.
+
 ### Optional (phase 2+)
 - Additional exports for placed-date challenges.
 - User settings (timezone/date format/home coordinates/exclusions).
 - Adventure Lab count/manual entry.
+
 ### Data constraints
 - Some challenge stats require full historical coverage (not just recent PQ windows).
 - Must clearly label confidence/coverage if data appears partial.
@@ -58,58 +60,63 @@ The UI should feel modern and scannable: section cards, sticky section nav, resp
 
 ## MVP scope (phase 1)
 Deliver quickly with high value:
+
 1. **Overview**
    - total finds
    - active years
    - most recent find
    - top cache types
+
 2. **Chronology**
    - finds per month (bar)
    - cumulative finds (line)
    - day-of-week distribution
+
 3. **Types + Containers**
    - cache type distribution
    - container type distribution
+
 4. **D/T Matrix**
    - 9x9 (or normalized) heatmap of found combinations
+
 5. **Memorable Finds (basic)**
    - oldest cache found
    - highest D/T finds
    - simple milestone intervals (100/500/1000 etc.)
+
 6. **Cluster/Friends integration hook**
    - link out to `gpxfriends.php` for social analysis
 
 ---
 
+## Phase 2+ enhancements
+These modules extend MVP once core parsing and section rendering are stable:
 
+- **Combo Query Analysis**: Integrate features from Combo Pocket Query Insights (multi-query upload, new/disabled/archived/D/T changes, FTF opportunities, no recent activity, finder activity trends).
+- **Radius tools**: Home coordinate input, nearest/farthest, and map overlays.
+- **Advanced chronology slices**: Breakdowns by cache type and day-of-year overlays.
+- **Challenge panels**: Fizzy/Jasmer/birthday/alphanumeric where source data supports it.
+- **Owner stats**: Additional owner-centric trends and richer memorable-find rules.
+- **Finder Activity Trends**: Visualize streaks, gaps, and changing find patterns.
+- **No Recent Activity Finder**: Highlight caches with no logs in X days.
+- **First-to-Find Opportunities**: Surface caches with no finds or owner-note-only activity.
+- **D/T Change Tracker**: Show caches where D/T ratings changed over time.
 
-## Additional Challenge Types & Helpers
-
-There are many popular challenge types in geocaching. While Challenge Checkers are already available at project-gc.com, we could add Challenge Helpers to this tool in the future to help users track progress and find opportunities for these challenges:
+## Challenge helper catalog (future modules)
+Challenge Checkers already exist at project-gc.com. This project can add **Challenge Helpers** focused on progress tracking, opportunity finders, and visualizations.
 
 - **JASMER**: Find a cache published in every month since May 2000.
-- **Fizzy (or DT Grid)**: Find a cache with every combination of D and T rating (81 combos). 'Looping' means completing the grid multiple times.
-- **Oldies**: Find the X oldest active geocaches in a region (country, state, county, etc.).
-- **BADGES**: Earn badges for all-round achievement (as in Project-GC and GSAK), including gemstone and black belt levels.
-- **Streaking**: Find a cache every day for a set period (e.g., 30, 183, or 366 days).
-- **Calendars**: Find a cache on every date of the year (any year), and/or find a cache published on each date of the year.
-- **DT Average**: Raise your average Difficulty and Terrain ratings above a threshold (e.g., 1.8, 1.9, 2.0).
-- **Milestones**: Celebrate every major find count (10s, 100s, 1000s, 10000s, etc.), making each milestone memorable.
-- **Unloved**: Find caches that haven't been found for at least 183 or 365 days; sum the 'days of unloved' for a cumulative total.
-- **Mayoralty**: Find every cache in a defined area (town, county, city region, etc.).
-- **Radius**: Find every cache within a certain distance (e.g., 5km, 5 miles, 10km) from your home coordinates.
-- **Degrees**: Find a cache on every degree bearing (all 360) from your home coordinates.
-
-These could be surfaced as Challenge Helper modules, providing progress tracking, opportunity finders, and visualizations for each challenge type.
-- **Combo Query Analysis**: Integrate features from Combo Pocket Query Insights (multi-query upload, new/disabled/archived/D/T changes, FTF opportunities, no recent activity, finder activity trends)
-- **Radius tools** with home coordinate input + nearest/farthest + map.
-- **Advanced chronology slices** (by cache type, day-of-year overlays).
-- **Challenge panels** (Fizzy/Jasmer/birthday/alphanumeric) where source data allows.
-- **Owner stats** and richer memorable-find rules.
-- **Finder Activity Trends**: Track and visualize a user's find patterns, streaks, and gaps.
-- **No Recent Activity Finder**: Highlight caches with no logs in X days.
-- **First-to-Find Opportunities**: Identify caches with no finds or only owner notes.
-- **D/T Change Tracker**: Show caches where D/T ratings have changed over time.
+- **Fizzy (D/T Grid)**: Complete all 81 D/T combinations; support loop tracking.
+- **Oldies**: Find the X oldest active geocaches in a region.
+- **BADGES**: Track all-round achievement tiers (similar to Project-GC/GSAK).
+- **Streaking**: Find every day for a target duration (30, 183, 366, etc.).
+- **Calendars**: Find on every day-of-year and/or cache placed on each day-of-year.
+- **DT Average**: Raise average Difficulty/Terrain above a threshold.
+- **Milestones**: Track meaningful count intervals (10s, 100s, 1000s, 10000s, etc.).
+- **Unloved**: Count finds with long no-find periods (183/365+ days).
+- **Mayoralty**: Complete all caches in a defined area.
+- **Radius**: Complete all caches within a configured distance from home.
+- **Degrees**: Find at all 360 bearings from home coordinates.
 
 ### D/T Challenge Grid & Opportunity Finder
 
