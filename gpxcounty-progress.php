@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/gpx_helpers.php';
 require_once __DIR__ . '/includes/gpx_format_helpers.php';
+require_once __DIR__ . '/includes/finds_parser_helpers.php';
 require_once __DIR__ . '/includes/county_lookup_helpers.php';
 
 $extraHeadHtml = <<<'HTML'
@@ -65,109 +66,16 @@ renderPageStart(array(
   'activeNav' => 'gpxcountyprogress',
   'extraHeadHtml' => $extraHeadHtml,
 ));
-
-function extractCountyFinderName($log) {
-    $finderName = '';
-
-    if (isset($log->finder)) {
-        $finderName = trim((string)$log->finder);
-    }
-
-    if ($finderName === '') {
-        $logNs = $log->children('http://www.groundspeak.com/cache/1/0/1');
-        if (isset($logNs->finder)) {
-            $finderName = trim((string)$logNs->finder);
-        }
-    }
-
-    return $finderName;
-}
-
-function isCountyFoundLogType($logType) {
-    return strtolower(trim((string)$logType)) === 'found it';
-}
-
-function parseCountyFindsFromGpx($gpxPath, $displayName, $targetUsername, &$message) {
-    libxml_use_internal_errors(true);
-    $xml = simplexml_load_file($gpxPath, 'SimpleXMLElement', LIBXML_NONET);
-    libxml_clear_errors();
-
-    if ($xml === false || strtolower($xml->getName()) !== 'gpx') {
-        $message .= 'Could not parse GPX: ' . $displayName . '. ';
-        return array();
-    }
-
-    $targetNorm = strtolower(trim((string)$targetUsername));
-    $findsByCode = array();
-    foreach ($xml->wpt as $wpt) {
-        $cacheCode = trim((string)$wpt->name);
-        $typeParts = explode('|', (string)$wpt->type);
-        $cacheType = $typeParts[0];
-
-        if ($cacheType !== 'Geocache' || $cacheCode === '') {
-            continue;
-        }
-
-        $cacheInfo = $wpt->children('http://www.groundspeak.com/cache/1/0/1');
-        if (!isset($cacheInfo->cache->logs) || !isset($cacheInfo->cache->logs->log)) {
-            continue;
-        }
-
-        $cacheName = trim((string)$wpt->urlname);
-        $cacheUrl = trim((string)$wpt->url);
-        $cacheLat = (float)$wpt['lat'];
-        $cacheLon = (float)$wpt['lon'];
-
-        $bestFindTs = null;
-        $bestFindRaw = '';
-
-        foreach ($cacheInfo->cache->logs->log as $log) {
-            $logType = trim((string)$log->type);
-            if (!isCountyFoundLogType($logType)) {
-                continue;
-            }
-
-            $finderName = extractCountyFinderName($log);
-            if ($finderName === '' || strtolower($finderName) !== $targetNorm) {
-                continue;
-            }
-
-            $dateRaw = trim((string)$log->date);
-            $dateTs = strtotime($dateRaw);
-            if ($dateTs === false) {
-                continue;
-            }
-
-            if ($bestFindTs === null || $dateTs < $bestFindTs) {
-                $bestFindTs = $dateTs;
-                $bestFindRaw = $dateRaw;
-            }
-        }
-
-        if ($bestFindTs === null) {
-            continue;
-        }
-
-        $findsByCode[$cacheCode] = array(
-            'cacheCode' => $cacheCode,
-            'cacheName' => $cacheName,
-            'cacheUrl' => $cacheUrl,
-            'lat' => $cacheLat,
-            'lon' => $cacheLon,
-            'firstFoundTs' => $bestFindTs,
-            'firstFoundRaw' => $bestFindRaw,
-            'sourceName' => $displayName,
-        );
-    }
-
-    return $findsByCode;
-}
 ?>
       <div class="headline">
         <h1>County progress from My Finds GPX</h1>
         <p class="lead">Upload one or more My Finds GPX/ZIP files to calculate US county coverage.</p>
       </div>
 <?php
+$debugEnabled = !empty($_GET['debug']) || !empty($_POST['debug']);
+$requestStartedAt = microtime(true);
+$debugStats = array();
+
 $message = '';
 $geojsonMessage = '';
 $geojsonPath = __DIR__ . '/data/us-counties.geojson';
@@ -206,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $parsedUploads[] = $parsedUpload;
-            $fileFinds = parseCountyFindsFromGpx($parsedUpload['source'], $parsedUpload['name'], $targetUsername, $message);
+          $fileFinds = parseFoundCachesFromGpx($parsedUpload['source'], $parsedUpload['name'], $targetUsername, $message);
 
             foreach ($fileFinds as $cacheCode => $find) {
                 if (!isset($allFindsByCode[$cacheCode]) || $find['firstFoundTs'] < $allFindsByCode[$cacheCode]['firstFoundTs']) {
@@ -222,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (count($allFindsByCode) < 1) {
             echo '<div class="alert alert-warning" role="alert">No matching Found it logs were found for ' . h($targetUsername) . '. ' . h($message) . '</div>';
         } else {
+          $debugStats['unique_finds'] = count($allFindsByCode);
             $countyFoundByFips = array();
             $resolvedFindCount = 0;
 
@@ -311,6 +220,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $totalCountyCount = count($allCountiesByFips);
             $missingCountyCount = max(0, $totalCountyCount - $foundCountyCount);
             $coveragePct = $totalCountyCount > 0 ? ($foundCountyCount * 100 / $totalCountyCount) : 0;
+            $debugStats['resolved_finds'] = $resolvedFindCount;
+            $debugStats['matched_counties'] = $foundCountyCount;
+            $debugStats['total_counties'] = $totalCountyCount;
             $visitedFipsList = array_values(array_keys($countyFoundByFips));
             $foundCountsByFips = array();
             $maxFoundCount = 0;
@@ -430,7 +342,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     echo '
     <div class="headline">
-      <form action="gpxcounty-progress.php" method="post" enctype="multipart/form-data" id="countyForm" class="mx-auto" style="max-width: 960px;">
+      <form action="' . ($debugEnabled ? 'gpxcounty-progress.php?debug=1' : 'gpxcounty-progress.php') . '" method="post" enctype="multipart/form-data" id="countyForm" class="mx-auto" style="max-width: 960px;">
         <div class="mb-3 text-start">
           <label for="targetUsername" class="form-label"><strong>Geocaching username</strong></label>
           <input type="text" class="form-control" id="targetUsername" name="targetUsername" placeholder="Required for strict Found it matching" required>
@@ -446,6 +358,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     ';
 }
+
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && $debugEnabled) {
+    $elapsedMs = (microtime(true) - $requestStartedAt) * 1000;
+    $memoryNowMb = memory_get_usage(true) / 1048576;
+    $memoryPeakMb = memory_get_peak_usage(true) / 1048576;
+    echo '<div class="alert alert-secondary small" role="status"><strong>Debug:</strong> elapsed ' . h(number_format($elapsedMs, 1)) . ' ms; memory now ' . h(number_format($memoryNowMb, 2)) . ' MB; memory peak ' . h(number_format($memoryPeakMb, 2)) . ' MB';
+    foreach ($debugStats as $key => $value) {
+      echo '; ' . h($key) . ' ' . h((string)$value);
+    }
+    echo '.</div>';
+  }
 ?>
   <div id="countyProcessingOverlay" class="county-processing-overlay" aria-live="polite" aria-hidden="true">
     <div class="card shadow overlay-card">

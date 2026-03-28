@@ -37,31 +37,23 @@ if (!function_exists('deLormeBookSlug')) {
     }
 }
 
-// Load polygon data for one book from $dataDir, cached for the lifetime of the request.
+// Load polygon data for one book from $dataDir.
 // Returns array keyed by page id => polygon (array of [lon, lat] pairs).
 if (!function_exists('loadDeLormeBookPolygons')) {
     function loadDeLormeBookPolygons($bookName, $dataDir) {
-        static $cache = array();
-        if (array_key_exists($bookName, $cache)) {
-            return $cache[$bookName];
-        }
-
         $slug = deLormeBookSlug($bookName);
         $path = rtrim($dataDir, '/') . '/' . $slug . '.json';
         if (!file_exists($path)) {
-            $cache[$bookName] = array();
             return array();
         }
 
         $raw = @file_get_contents($path);
         if ($raw === false) {
-            $cache[$bookName] = array();
             return array();
         }
 
         $decoded = json_decode($raw, true);
         if (!is_array($decoded) || !isset($decoded['pages'])) {
-            $cache[$bookName] = array();
             return array();
         }
 
@@ -72,7 +64,6 @@ if (!function_exists('loadDeLormeBookPolygons')) {
             }
         }
 
-        $cache[$bookName] = $indexed;
         return $indexed;
     }
 }
@@ -87,51 +78,74 @@ if (!function_exists('loadDeLormeBookPolygons')) {
 // Requires county_lookup_helpers.php (countyLookupPointInRing).
 if (!function_exists('matchDeLormePagesToFinds')) {
     function matchDeLormePagesToFinds($findsByCode, $indexPages, $dataDir) {
-        // Phase 1: bbox prefilter — gather per-find candidates and note which books are needed.
-        $candidatesByCode = array();
-        $neededBooks = array();
-
-        foreach ($findsByCode as $code => $find) {
-            $lat = (float)$find['lat'];
-            $lon = (float)$find['lon'];
-
-            foreach ($indexPages as $page) {
-                if (!isset($page['bbox']) || count($page['bbox']) < 4) {
-                    continue;
-                }
-                $bbox = $page['bbox'];
-                if ($lon < $bbox[0] || $lon > $bbox[2] || $lat < $bbox[1] || $lat > $bbox[3]) {
-                    continue;
-                }
-                $candidatesByCode[$code][] = $page;
-                $neededBooks[$page['bookName']] = true;
-            }
-        }
-
-        // Phase 2: load polygon data only for the books that have candidates.
-        foreach (array_keys($neededBooks) as $bookName) {
-            loadDeLormeBookPolygons($bookName, $dataDir);
-        }
-
-        // Phase 3: point-in-polygon test on the candidates.
-        $results = array();
-        foreach ($findsByCode as $code => $find) {
-            if (!isset($candidatesByCode[$code])) {
+        // Group index pages by book once, then process one book at a time.
+        // This avoids keeping large candidate maps and many decoded polygon files in memory.
+        $pagesByBook = array();
+        foreach ($indexPages as $page) {
+            if (!isset($page['bookName'])) {
                 continue;
             }
-            $lat = (float)$find['lat'];
-            $lon = (float)$find['lon'];
+            $pagesByBook[$page['bookName']][] = $page;
+        }
 
-            foreach ($candidatesByCode[$code] as $candidate) {
-                $polygons = loadDeLormeBookPolygons($candidate['bookName'], $dataDir);
-                $pageId = $candidate['id'];
-                if (!isset($polygons[$pageId])) {
+        $results = array();
+        $remainingCodes = array_keys($findsByCode);
+
+        foreach ($pagesByBook as $bookName => $bookPages) {
+            if (count($remainingCodes) < 1) {
+                break;
+            }
+
+            $polygons = loadDeLormeBookPolygons($bookName, $dataDir);
+            if (count($polygons) < 1) {
+                continue;
+            }
+
+            $nextRemaining = array();
+
+            foreach ($remainingCodes as $code) {
+                if (!isset($findsByCode[$code])) {
                     continue;
                 }
-                if (countyLookupPointInRing($lon, $lat, $polygons[$pageId])) {
-                    $results[$code] = $candidate;
-                    break;
+
+                $find = $findsByCode[$code];
+                $lat = (float)$find['lat'];
+                $lon = (float)$find['lon'];
+                $matched = false;
+
+                foreach ($bookPages as $candidate) {
+                    if (!isset($candidate['bbox']) || count($candidate['bbox']) < 4 || !isset($candidate['id'])) {
+                        continue;
+                    }
+
+                    $bbox = $candidate['bbox'];
+                    if ($lon < $bbox[0] || $lon > $bbox[2] || $lat < $bbox[1] || $lat > $bbox[3]) {
+                        continue;
+                    }
+
+                    $pageId = $candidate['id'];
+                    if (!isset($polygons[$pageId])) {
+                        continue;
+                    }
+
+                    if (countyLookupPointInRing($lon, $lat, $polygons[$pageId])) {
+                        $results[$code] = $candidate;
+                        $matched = true;
+                        break;
+                    }
                 }
+
+                if (!$matched) {
+                    $nextRemaining[] = $code;
+                }
+            }
+
+            $remainingCodes = $nextRemaining;
+
+            // Release per-book polygon memory before loading the next book.
+            unset($polygons);
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
             }
         }
 
