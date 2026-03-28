@@ -16,6 +16,7 @@ if (!function_exists('renderNavbar')) {
             'gpxfriends' => array('label' => 'Caching companions', 'href' => './gpxfriends.php'),
             'gpxleaderboard' => array('label' => 'Leaderboard', 'href' => './gpxleaderboard.php'),
             'gpxcountyprogress' => array('label' => 'County progress', 'href' => './gpxcounty-progress.php'),
+            'gpxdelormprogress' => array('label' => 'DeLorme progress', 'href' => './gpxdelorme-progress.php'),
         );
 
         echo '    <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">';
