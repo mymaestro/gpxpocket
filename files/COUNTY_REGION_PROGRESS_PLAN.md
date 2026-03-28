@@ -1,8 +1,27 @@
 # County/Region Progress Checker plan
 
+## Current status (March 2026)
+
+Implemented:
+
+- County progress page is live and stable.
+- DeLorme Atlas page progress page is live and stable.
+- Shared GPX found-log parsing helper is in place for both pipelines.
+- Memory-safe DeLorme matching is in place for large "My Finds" uploads (tested with ~39k unique finds).
+
+Current pages:
+
+- `gpxcounty-progress.php`
+- `gpxdelorme-progress.php`
+
 ## Goal
 
 Show progress toward county or region coverage based on the user's found caches.
+
+In practice this now includes:
+
+- US county coverage progress.
+- DeLorme Atlas & Gazetteer page coverage progress.
 
 ## Core reality
 
@@ -71,6 +90,18 @@ Fallback option:
 - Online reverse geocoding (Nominatim) only as a backup when local lookup is unavailable.
 - If fallback is enabled, respect 1 request/second and set a custom User-Agent.
 
+### DeLorme dataset (implemented)
+
+DeLorme page matching uses local JSON data under `data/`:
+
+- `data/delorme-pages.json`: lightweight index with page metadata + bounding boxes.
+- `data/delorme/*.json`: per-book polygon files (loaded on demand).
+
+Design reason:
+
+- Avoid loading all DeLorme polygons into memory at once.
+- Keep request memory stable under common 128 MB PHP limits.
+
 ## Processing model
 
 1. Parse uploaded GPX files.
@@ -79,13 +110,21 @@ Fallback option:
    - cache name/url
    - found-date evidence (from logs)
 3. Keep only caches with clear Found it evidence.
-4. Point-in-polygon each found coordinate against county boundaries.
+4. Resolve each found coordinate against the selected geometry dataset:
+   - counties: county polygons
+   - DeLorme: atlas page polygons
 5. Aggregate results:
    - counties found
    - counties missing
    - grouped by state
 6. Render summary and export CSV:
    - state, county, found_count, first_found_date, sample_gc
+
+DeLorme memory-safe matching strategy (implemented):
+
+- Group index pages by book.
+- Process one book at a time.
+- Load one book polygon file, match remaining finds, then release memory before next book.
 
 Optional cache layer:
 
@@ -103,6 +142,19 @@ Optional cache layer:
   - example cache
 - Missing-only view for challenge planning.
 
+DeLorme page outputs:
+
+- Coverage summary cards (pages found/missing/percent).
+- Table of pages:
+   - found/missing status
+   - state
+   - book
+   - page
+   - first found date
+   - find count
+   - sample cache
+- CSV export of page progress.
+
 Phase 2 outputs:
 
 - Leaflet map view that colors visited counties (green) and unvisited counties (light gray).
@@ -110,9 +162,10 @@ Phase 2 outputs:
 
 ## Accuracy and limitations
 
-- Coordinates in GPX are usually posted coordinates; county assignment is usually correct but may be off near borders.
+- Coordinates in GPX are usually posted coordinates; assignment is usually correct but may be off near borders.
 - Incomplete log history can hide some valid finds.
 - County names vary (Saint vs St., punctuation); normalize names and keep canonical IDs (FIPS when available).
+- DeLorme polygons are atlas-derived representations and may not match county geometry exactly.
 
 ## Privacy
 
@@ -131,6 +184,16 @@ Phase 1 (MVP):
 - Summary + table + CSV export.
 - Integrate with existing app navigation/layout.
 
+Delivered after MVP planning:
+
+- DeLorme page progress page.
+- Shared parser helper for county + DeLorme pages.
+- Optional debug diagnostics via `?debug=1` on POST results:
+   - elapsed time
+   - current memory
+   - peak memory
+   - key counters
+
 Phase 2:
 
 - Leaflet county map page/view.
@@ -148,7 +211,9 @@ Phase 3:
 ## Technical fit with current codebase
 
 - Reuse upload normalization and GPX parsing patterns from existing pages.
-- Add one new tool page (gpxcounty-progress.php) and nav + home card link.
+- Tool pages in production:
+   - `gpxcounty-progress.php`
+   - `gpxdelorme-progress.php`
 - Keep style consistent with Bootstrap card/table patterns already used.
 - Do not replace existing routing with standalone /process.php workflow; keep page integrated with current multi-tool app.
 
@@ -170,19 +235,21 @@ Stack:
 - PHP backend (no framework required).
 - Leaflet.js frontend for county map rendering.
 - Local GeoJSON county boundaries for primary county resolution and map overlays.
+- Local DeLorme page index + per-book polygon JSON files for atlas page resolution.
 - Optional SQLite for county lookup caching.
 - Optional Nominatim reverse geocoding fallback only.
 
 Implementation direction in this repository:
 
 - Keep existing app entry points and shared layout patterns.
-- Add `gpxcounty-progress.php` as the tool page.
-- Add supporting helpers under `includes/` if needed (county lookup, CSV parser, cache helpers).
+- Add `gpxcounty-progress.php` and `gpxdelorme-progress.php` as tool pages.
+- Supporting helpers currently include county lookup, DeLorme lookup, and shared finds parser.
 - `gpx...` naming is for top-level tool pages; helper files in `includes/` can follow existing helper naming conventions.
-- Add local data files under a dedicated data directory (for county GeoJSON and optional SQLite db).
+- Keep local data files under `data/` (county GeoJSON, DeLorme index, DeLorme per-book polygons, optional SQLite db).
 
 Operational notes:
 
 - If Nominatim fallback is enabled, send a custom User-Agent and throttle to 1 request/second.
 - Match visited counties by FIPS against map GeoJSON properties.
+- For DeLorme matching, prefer bounded-memory book-by-book processing over global candidate expansion.
 - Keep local dev simple via `php -S localhost:8000`.
