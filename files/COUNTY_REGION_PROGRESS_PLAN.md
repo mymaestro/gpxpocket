@@ -14,6 +14,12 @@ Current pages:
 - `gpxcounty-progress.php`
 - `gpxdelorme-progress.php`
 
+Next map enhancements (queued):
+
+- Hybrid rendering for DeLorme map: use fast bbox rectangles at lower zoom and switch to true page polygons at higher zoom.
+- Sync map visibility with table filters (found/missing + state) so map and table stay in lockstep.
+- Add a map snapshot/export action to save or share a progress view image.
+
 ## Goal
 
 Show progress toward county or region coverage based on the user's found caches.
@@ -200,6 +206,9 @@ Phase 2:
 - SQLite cache for resolved coordinate-to-county mappings.
 - Optional Nominatim fallback path.
 - CSV input support.
+- DeLorme map hybrid-detail rendering (bbox low zoom, polygon high zoom).
+- DeLorme map and table filter synchronization.
+- Map snapshot/export support for sharing progress.
 
 Phase 3:
 
