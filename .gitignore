@@ -9,3 +9,4 @@ Thumbs.db
 # Build/runtime artifacts
 *.log
 *.tmp
+data/profiles/*
