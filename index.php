@@ -80,6 +80,17 @@ renderPageStart(array(
             </div>
           </div>
         </div>
+
+        <div class="col">
+          <div class="d-flex align-items-start gap-3">
+            <div class="fs-3 lh-1 text-primary"><i class="bi bi-bullseye"></i></div>
+            <div>
+              <h5 class="mb-1">ChallengeFiller</h5>
+              <p class="mb-2">Score regional caches by how many missing challenge gaps they fill (county, DeLorme, and D/T).</p>
+              <a href="./gpxchallengefiller.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="row">

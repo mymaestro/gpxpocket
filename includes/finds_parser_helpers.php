@@ -57,6 +57,8 @@ if (!function_exists('parseFoundCachesFromGpx')) {
             $cacheUrl = trim((string)$wpt->url);
             $cacheLat = (float)$wpt['lat'];
             $cacheLon = (float)$wpt['lon'];
+            $cacheDifficulty = isset($cacheInfo->cache->difficulty) ? trim((string)$cacheInfo->cache->difficulty) : '';
+            $cacheTerrain = isset($cacheInfo->cache->terrain) ? trim((string)$cacheInfo->cache->terrain) : '';
 
             $bestFindTs = null;
             $bestFindRaw = '';
@@ -94,6 +96,8 @@ if (!function_exists('parseFoundCachesFromGpx')) {
                 'cacheUrl' => $cacheUrl,
                 'lat' => $cacheLat,
                 'lon' => $cacheLon,
+                'difficulty' => $cacheDifficulty,
+                'terrain' => $cacheTerrain,
                 'firstFoundTs' => $bestFindTs,
                 'firstFoundRaw' => $bestFindRaw,
                 'sourceName' => $displayName,

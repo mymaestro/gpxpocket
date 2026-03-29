@@ -17,6 +17,7 @@ if (!function_exists('renderNavbar')) {
             'gpxleaderboard' => array('label' => 'Leaderboard', 'href' => './gpxleaderboard.php'),
             'gpxcountyprogress' => array('label' => 'County progress', 'href' => './gpxcounty-progress.php'),
             'gpxdelormprogress' => array('label' => 'DeLorme progress', 'href' => './gpxdelorme-progress.php'),
+            'gpxchallengefiller' => array('label' => 'ChallengeFiller', 'href' => './gpxchallengefiller.php'),
         );
 
         echo '    <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">';
