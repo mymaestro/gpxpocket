@@ -139,34 +139,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($hasDeLormeDataset) {
                 $matchedPages = matchDeLormePagesToFinds($allFindsByCode, $deLormePages, $deLormeDataDir);
 
-                foreach ($matchedPages as $cacheCode => $page) {
+                // matchDeLormePagesToFinds returns cacheCode => [ page, ... ] so that
+                // finds in overlapping-edition states (e.g. Arkansas / Arkansas 2) are
+                // credited to every matching atlas edition.
+                foreach ($matchedPages as $cacheCode => $pages) {
                     $find = $allFindsByCode[$cacheCode];
-                    $pageId = $page['id'];
                     $resolvedFindCount++;
 
-                    if (!isset($pagesFoundById[$pageId])) {
-                        $pagesFoundById[$pageId] = array(
-                            'id' => $pageId,
-                            'stateName' => $page['stateName'],
-                            'bookName' => $page['bookName'],
-                            'page' => $page['page'],
-                            'foundCount' => 0,
-                            'firstFoundTs' => $find['firstFoundTs'],
-                            'firstFoundRaw' => $find['firstFoundRaw'],
-                            'sampleCode' => $find['cacheCode'],
-                            'sampleName' => $find['cacheName'],
-                            'sampleUrl' => $find['cacheUrl'],
-                        );
-                    }
+                    foreach ($pages as $page) {
+                        $pageId = $page['id'];
 
-                    $pagesFoundById[$pageId]['foundCount']++;
+                        if (!isset($pagesFoundById[$pageId])) {
+                            $pagesFoundById[$pageId] = array(
+                                'id' => $pageId,
+                                'stateName' => $page['stateName'],
+                                'bookName' => $page['bookName'],
+                                'page' => $page['page'],
+                                'foundCount' => 0,
+                                'firstFoundTs' => $find['firstFoundTs'],
+                                'firstFoundRaw' => $find['firstFoundRaw'],
+                                'sampleCode' => $find['cacheCode'],
+                                'sampleName' => $find['cacheName'],
+                                'sampleUrl' => $find['cacheUrl'],
+                            );
+                        }
 
-                    if ($find['firstFoundTs'] < $pagesFoundById[$pageId]['firstFoundTs']) {
-                        $pagesFoundById[$pageId]['firstFoundTs'] = $find['firstFoundTs'];
-                        $pagesFoundById[$pageId]['firstFoundRaw'] = $find['firstFoundRaw'];
-                        $pagesFoundById[$pageId]['sampleCode'] = $find['cacheCode'];
-                        $pagesFoundById[$pageId]['sampleName'] = $find['cacheName'];
-                        $pagesFoundById[$pageId]['sampleUrl'] = $find['cacheUrl'];
+                        $pagesFoundById[$pageId]['foundCount']++;
+
+                        if ($find['firstFoundTs'] < $pagesFoundById[$pageId]['firstFoundTs']) {
+                            $pagesFoundById[$pageId]['firstFoundTs'] = $find['firstFoundTs'];
+                            $pagesFoundById[$pageId]['firstFoundRaw'] = $find['firstFoundRaw'];
+                            $pagesFoundById[$pageId]['sampleCode'] = $find['cacheCode'];
+                            $pagesFoundById[$pageId]['sampleName'] = $find['cacheName'];
+                            $pagesFoundById[$pageId]['sampleUrl'] = $find['cacheUrl'];
+                        }
                     }
                 }
             }
@@ -569,6 +575,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             pages = indexData.pages;
           }
           var layers = [];
+          var allRects = [];
           pages.forEach(function (page) {
             var id = String(page.id);
             var bbox = page.bbox; // [lonMin, latMin, lonMax, latMax]
@@ -583,15 +590,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               fillOpacity: isVisited ? 0.72 : 0.45,
               fillColor: isVisited ? getVisitedFillColor(findCount) : '#dee2e6'
             });
-            var status = isVisited ? 'Visited' : 'Missing';
-            rect.bindPopup(
-              '<strong>' + page.bookName + ' p.\u200b' + page.page + '</strong>' +
-              '<br>State: ' + page.stateName +
-              '<br>Status: ' + status +
-              '<br>Find count: ' + findCount
-            );
+            rect._deLormePageInfo = {
+              id: id,
+              bookName: page.bookName,
+              page: page.page,
+              stateName: page.stateName,
+              isVisited: isVisited,
+              findCount: findCount
+            };
+            allRects.push(rect);
             layers.push(rect);
           });
+
+          var sharedPopup = L.popup({ maxWidth: 320 });
+
+          allRects.forEach(function (rect) {
+            rect.on('click', function (e) {
+              var latlng = e.latlng;
+              // Collect every rect whose bbox contains the clicked point, so
+              // overlapping editions (e.g. Arkansas / Arkansas 2) all appear.
+              var matches = allRects.filter(function (r) {
+                return r.getBounds().contains(latlng);
+              });
+              if (!matches.length) { return; }
+
+              var html;
+              if (matches.length === 1) {
+                var p = matches[0]._deLormePageInfo;
+                var statusLabel = p.isVisited ? 'Visited' : 'Missing';
+                html = '<strong>' + p.bookName + ' p.\u200b' + p.page + '</strong>' +
+                       '<br>State: ' + p.stateName +
+                       '<br>Status: ' + statusLabel +
+                       '<br>Find count: ' + p.findCount;
+              } else {
+                // Sort: visited editions first, then alphabetically by bookName.
+                matches.sort(function (a, b) {
+                  var ai = a._deLormePageInfo, bi = b._deLormePageInfo;
+                  if (ai.isVisited !== bi.isVisited) { return ai.isVisited ? -1 : 1; }
+                  return ai.bookName < bi.bookName ? -1 : ai.bookName > bi.bookName ? 1 : 0;
+                });
+                html = '<strong>' + matches[0]._deLormePageInfo.stateName + '</strong>' +
+                       '<div style="border-top:1px solid #dee2e6;margin:4px 0"></div>';
+                matches.forEach(function (r) {
+                  var p = r._deLormePageInfo;
+                  var findLabel = p.isVisited
+                    ? '<span style="color:#198754">&#10003; Visited</span> &middot; ' +
+                      p.findCount + ' find' + (p.findCount !== 1 ? 's' : '')
+                    : '<span style="color:#6c757d">Missing</span>';
+                  html += '<div style="margin-bottom:4px">' +
+                          '<strong>' + p.bookName + '</strong> p.\u200b' + p.page +
+                          '<br>' + findLabel +
+                          '</div>';
+                });
+              }
+
+              sharedPopup.setLatLng(latlng).setContent(html).openOn(deLormeMap);
+            });
+          });
+
           var group = L.featureGroup(layers).addTo(deLormeMap);
           var groupBounds = group.getBounds();
           if (groupBounds && groupBounds.isValid()) {

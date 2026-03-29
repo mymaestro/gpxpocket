@@ -77,12 +77,33 @@ if (!function_exists('loadDeLormeBookPolygons')) {
 // $indexPages   — result of loadDeLormePages() (bbox metadata only, no polygons)
 // $dataDir      — path to the directory containing per-book polygon JSON files
 //
-// Returns map of cacheCode => matched page metadata array.
+// Returns map of cacheCode => array of matched page metadata (one entry per matched
+// page).  A find in an overlapping-edition state (e.g. Arkansas / Arkansas 2, or
+// California / NorCal / SoCal) will produce multiple entries — one per edition whose
+// polygon contains the find's coordinates.
 // Requires county_lookup_helpers.php (countyLookupPointInRing).
 if (!function_exists('matchDeLormePagesToFinds')) {
     function matchDeLormePagesToFinds($findsByCode, $indexPages, $dataDir) {
-        // Group index pages by book once, then process one book at a time.
-        // This avoids keeping large candidate maps and many decoded polygon files in memory.
+        // Books that share geographic coverage across multiple editions.  A find
+        // whose coordinates fall inside the overlap area may legitimately belong to
+        // every book in its group, so we do NOT early-exit after the first match.
+        $overlapGroups = array(
+            array('Arkansas',  'Arkansas 2'),
+            array('Florida',   'Florida 2'),
+            array('Minnesota', 'Minnesota 2'),
+            array('Utah',      'Utah 2'),
+            array('Wisconsin', 'Wisconsin 2'),
+            array('Wyoming',   'Wyoming 2'),
+            array('California', 'NorCal', 'SoCal'),
+        );
+        $overlapBookNames = array();
+        foreach ($overlapGroups as $group) {
+            foreach ($group as $n) {
+                $overlapBookNames[$n] = true;
+            }
+        }
+
+        // Group index pages by book once.
         $pagesByBook = array();
         foreach ($indexPages as $page) {
             if (!isset($page['bookName'])) {
@@ -91,10 +112,82 @@ if (!function_exists('matchDeLormePagesToFinds')) {
             $pagesByBook[$page['bookName']][] = $page;
         }
 
+        // cacheCode => [ page_metadata, ... ]
         $results = array();
         $remainingCodes = array_keys($findsByCode);
 
+        // ---- Pass 1: overlap groups ------------------------------------------------
+        // Each find is checked against every book in the group; it may accumulate
+        // matches in more than one book simultaneously.
+        foreach ($overlapGroups as $group) {
+            $groupBookPages = array();
+            $groupPolygons  = array();
+            foreach ($group as $bookName) {
+                if (!isset($pagesByBook[$bookName])) {
+                    continue;
+                }
+                $polygons = loadDeLormeBookPolygons($bookName, $dataDir);
+                if (count($polygons) < 1) {
+                    continue;
+                }
+                $groupBookPages[$bookName] = $pagesByBook[$bookName];
+                $groupPolygons[$bookName]  = $polygons;
+            }
+
+            if (count($groupBookPages) < 1) {
+                continue;
+            }
+
+            foreach ($remainingCodes as $code) {
+                if (!isset($findsByCode[$code])) {
+                    continue;
+                }
+                $find = $findsByCode[$code];
+                $lat  = (float)$find['lat'];
+                $lon  = (float)$find['lon'];
+
+                foreach ($groupBookPages as $bookName => $bookPages) {
+                    foreach ($bookPages as $candidate) {
+                        if (!isset($candidate['bbox']) || count($candidate['bbox']) < 4 || !isset($candidate['id'])) {
+                            continue;
+                        }
+                        $bbox = $candidate['bbox'];
+                        if ($lon < $bbox[0] || $lon > $bbox[2] || $lat < $bbox[1] || $lat > $bbox[3]) {
+                            continue;
+                        }
+                        $pageId = $candidate['id'];
+                        if (!isset($groupPolygons[$bookName][$pageId])) {
+                            continue;
+                        }
+                        foreach ($groupPolygons[$bookName][$pageId] as $polygonRing) {
+                            if (countyLookupPointInRing($lon, $lat, $polygonRing)) {
+                                $results[$code][] = $candidate;
+                                break; // stop checking rings for this page
+                            }
+                        }
+                    }
+                }
+            }
+
+            unset($groupPolygons);
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
+            }
+        }
+
+        // Finds that matched anything in an overlap group cannot also belong to a
+        // non-overlapping standalone book, so remove them from further processing.
+        $overlapMatchedCodes = array_flip(array_keys($results));
+        $remainingCodes = array_values(array_filter(
+            $remainingCodes,
+            function ($c) use ($overlapMatchedCodes) { return !isset($overlapMatchedCodes[$c]); }
+        ));
+
+        // ---- Pass 2: standalone books (first match wins, early-exit kept) ----------
         foreach ($pagesByBook as $bookName => $bookPages) {
+            if (isset($overlapBookNames[$bookName])) {
+                continue; // already handled in pass 1
+            }
             if (count($remainingCodes) < 1) {
                 break;
             }
@@ -111,9 +204,9 @@ if (!function_exists('matchDeLormePagesToFinds')) {
                     continue;
                 }
 
-                $find = $findsByCode[$code];
-                $lat = (float)$find['lat'];
-                $lon = (float)$find['lon'];
+                $find    = $findsByCode[$code];
+                $lat     = (float)$find['lat'];
+                $lon     = (float)$find['lon'];
                 $matched = false;
 
                 foreach ($bookPages as $candidate) {
@@ -133,7 +226,7 @@ if (!function_exists('matchDeLormePagesToFinds')) {
 
                     foreach ($polygons[$pageId] as $polygonRing) {
                         if (countyLookupPointInRing($lon, $lat, $polygonRing)) {
-                            $results[$code] = $candidate;
+                            $results[$code][] = $candidate;
                             $matched = true;
                             break 2;
                         }
