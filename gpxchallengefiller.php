@@ -11,6 +11,13 @@ require_once __DIR__ . '/includes/profile_token_helpers.php';
 require_once __DIR__ . '/includes/profile_storage_helpers.php';
 require_once __DIR__ . '/includes/challengefiller_helpers.php';
 
+$profileContext = profileGetOrCreateTokenContext();
+$profileId = !empty($profileContext['ok']) ? $profileContext['profileId'] : '';
+$profileLoad = array('ok' => false, 'exists' => false, 'findsByCode' => array(), 'meta' => array(), 'error' => '');
+if ($profileId !== '') {
+  $profileLoad = profileStorageLoad($profileId);
+}
+
 $extraHeadHtml = <<<'HTML'
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -134,13 +141,6 @@ $deLormeMessage = '';
 $deLormePages = loadDeLormePages($deLormePath, $deLormeMessage);
 $hasDeLormeDataset = count($deLormePages) > 0;
 
-$profileContext = profileGetOrCreateTokenContext();
-$profileId = !empty($profileContext['ok']) ? $profileContext['profileId'] : '';
-$profileLoad = array('ok' => false, 'exists' => false, 'findsByCode' => array(), 'meta' => array(), 'error' => '');
-if ($profileId !== '') {
-    $profileLoad = profileStorageLoad($profileId);
-}
-
 $opportunityRows = array();
 $coverage = null;
 $myFindsCount = 0;
@@ -160,6 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newToken = profileRotateTokenCookie();
                 if ($newToken !== '') {
                     $profileId = profileIdFromToken($newToken);
+            } else {
+              // Fallback if response headers are already committed.
+              $profileId = !empty($profileContext['profileId']) ? $profileContext['profileId'] : $profileId;
                 }
                 echo '<div class="alert alert-success" role="alert">Stored My Finds profile reset. Upload a new My Finds file to continue.</div>';
                 $profileLoad = profileStorageLoad($profileId);
