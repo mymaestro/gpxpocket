@@ -12,7 +12,28 @@ require_once __DIR__ . '/includes/profile_storage_helpers.php';
 require_once __DIR__ . '/includes/challengefiller_helpers.php';
 
 $extraHeadHtml = <<<'HTML'
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="files/table2CSV.js"></script>
+  <style>
+    #opportunityMap {
+      height: 500px;
+      border: 1px solid #ddd;
+      border-radius: 0.25rem;
+      margin-bottom: 1rem;
+    }
+    .leaflet-popup-content {
+      min-width: 280px;
+    }
+    .cache-popup {
+      font-size: 0.875rem;
+    }
+    .cache-popup-checkbox {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #dee2e6;
+    }
+  </style>
 HTML;
 
 renderPageStart(array(
@@ -297,13 +318,28 @@ if ($runCompleted) {
     if (count($opportunityRows) < 1) {
         echo '<div class="alert alert-success" role="alert">No unmet county/DeLorme/DT opportunities found in the regional upload set.</div>';
     } else {
-        echo '<div class="d-flex justify-content-end mb-2">';
-        echo '  <button type="button" id="exportChallengeFillerCsv" class="btn btn-outline-primary btn-sm">Export CSV</button>';
+        echo '<h5 class="mt-4 mb-3">Opportunity Map</h5>';
+        echo '<div id="opportunityMap"></div>';
+        
+        echo '<div class="mb-3">';
+        echo '  <button type="button" id="selectAllCaches" class="btn btn-sm btn-outline-secondary">Select All</button>';
+        echo '  <button type="button" id="deselectAllCaches" class="btn btn-sm btn-outline-secondary">Deselect All</button>';
+        echo '  <span class="badge bg-secondary ms-2">Selected: <span id="selectedCount">0</span>/' . count($opportunityRows) . '</span>';
+        echo '</div>';
+
+        echo '<div class="d-flex justify-content-between mb-3">';
+        echo '  <div>';
+        echo '    <button type="button" id="exportSelectedCsv" class="btn btn-outline-primary btn-sm">Export Selected CSV</button>';
+        echo '  </div>';
+        echo '  <div>';
+        echo '    <button type="button" id="exportTableCsv" class="btn btn-outline-primary btn-sm">Export All CSV</button>';
+        echo '  </div>';
         echo '</div>';
 
         echo '<div class="table-responsive">';
         echo '<table id="challengeFillerTable.csv" class="table table-striped table-sm align-middle">';
         echo '<thead><tr>';
+        echo '<th style="width: 40px;"><input type="checkbox" id="selectAllTable" title="Select all table rows"></th>';
         echo '<th>Score</th><th>GC Code</th><th>Cache</th><th>Type</th><th>D/T</th><th>Signals</th><th>Source PQ</th>';
         echo '</tr></thead><tbody>';
 
@@ -320,7 +356,8 @@ if ($runCompleted) {
                 $signalLabels[] = $kind . ': ' . (string)$signal['label'];
             }
 
-            echo '<tr>';
+            echo '<tr data-cache-code="' . h($code) . '">';
+            echo '<td><input type="checkbox" class="cache-row-checkbox" value="' . h($code) . '" title="Select ' . h($code) . '"></td>';
             echo '<td><strong>' . (int)$row['score'] . '</strong></td>';
             echo '<td>' . $codeCell . '</td>';
             echo '<td>' . h($row['cacheName']) . '</td>';
@@ -337,18 +374,197 @@ if ($runCompleted) {
 ?>
 
 <script>
+var opportunityCaches = <?php if ($runCompleted && count($opportunityRows) > 0) { echo json_encode($opportunityRows, JSON_UNESCAPED_SLASHES); } else { echo '[]'; } ?>;
+var selectedCaches = new Set();
+
 $(function () {
-  var $table = $('#challengeFillerTable\\.csv');
-  var $exportButton = $('#exportChallengeFillerCsv');
-  if ($table.length && $exportButton.length && typeof $table.table2CSV === 'function') {
-    $exportButton.on('click', function () {
-      $table.table2CSV({
-        delivery: 'download',
-        filename: 'challengefiller-opportunities.csv',
-        separator: ','
+  if (opportunityCaches.length === 0) {
+    return;
+  }
+
+  // Initialize map
+  var bounds = [];
+  opportunityCaches.forEach(function (cache) {
+    bounds.push([cache.lat, cache.lon]);
+  });
+
+  var map = L.map('opportunityMap').fitBounds(bounds, { padding: [50, 50] });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Add markers for each opportunity cache
+  opportunityCaches.forEach(function (cache, index) {
+    var marker = L.circleMarker([cache.lat, cache.lon], {
+      radius: 6 + Math.min(cache.score * 1.5, 8),
+      fillColor: '#007bff',
+      color: '#0056b3',
+      weight: 2,
+      opacity: 0.8,
+      fillOpacity: 0.7
+    });
+
+    var popupContent = '<div class="cache-popup">' +
+      '<strong>' + htmlEscape(cache.cacheCode) + '</strong><br>' +
+      '<small>' + htmlEscape(cache.cacheName) + '</small><br>' +
+      '<div style="margin-top: 0.5rem;"><small>' +
+      'Score: <strong>' + cache.score + '</strong><br>' +
+      'D/T: ' + cache.difficulty + '/' + cache.terrain + '<br>' +
+      'Type: ' + htmlEscape(cache.cacheType) +
+      '</small></div>' +
+      '<div class="cache-popup-checkbox">' +
+      '<label style="margin: 0;"><input type="checkbox" class="map-cache-checkbox" value="' + htmlEscape(cache.cacheCode) + '" data-index="' + index + '"> Select</label>' +
+      '</div>' +
+      '</div>';
+
+    marker.bindPopup(popupContent);
+    marker.on('popupopen', function () {
+      var $checkbox = $('[data-index="' + index + '"]');
+      if (selectedCaches.has(cache.cacheCode)) {
+        $checkbox.prop('checked', true);
+      }
+      $checkbox.on('change', function () {
+        toggleCacheSelection(cache.cacheCode);
       });
     });
-  }
+    marker.addTo(map);
+  });
+
+  // Table checkbox handlers
+  $('#selectAllTable').on('change', function () {
+    var isChecked = $(this).prop('checked');
+    opportunityCaches.forEach(function (cache) {
+      if (isChecked) {
+        selectedCaches.add(cache.cacheCode);
+      } else {
+        selectedCaches.delete(cache.cacheCode);
+      }
+      updateTableCheckbox(cache.cacheCode, isChecked);
+    });
+    updateSelectedCount();
+  });
+
+  $('.cache-row-checkbox').on('change', function () {
+    var code = $(this).val();
+    if ($(this).prop('checked')) {
+      selectedCaches.add(code);
+    } else {
+      selectedCaches.delete(code);
+      $('#selectAllTable').prop('checked', false);
+    }
+    updateSelectedCount();
+  });
+
+  // Map selection buttons
+  $('#selectAllCaches').on('click', function () {
+    opportunityCaches.forEach(function (cache) {
+      selectedCaches.add(cache.cacheCode);
+      updateTableCheckbox(cache.cacheCode, true);
+    });
+    $('#selectAllTable').prop('checked', true);
+    updateSelectedCount();
+  });
+
+  $('#deselectAllCaches').on('click', function () {
+    selectedCaches.clear();
+    opportunityCaches.forEach(function (cache) {
+      updateTableCheckbox(cache.cacheCode, false);
+    });
+    $('#selectAllTable').prop('checked', false);
+    updateSelectedCount();
+  });
+
+  // Export handlers
+  $('#exportSelectedCsv').on('click', function () {
+    if (selectedCaches.size === 0) {
+      alert('Select at least one cache to export.');
+      return;
+    }
+    exportSelectedAsCSV();
+  });
+
+  $('#exportTableCsv').on('click', function () {
+    if (typeof $table !== 'undefined' && typeof $table.table2CSV === 'function') {
+      $table.table2CSV({ filename: 'challengefiller-all.csv' });
+    }
+  });
 });
+
+function htmlEscape(text) {
+  var map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, function (m) { return map[m]; });
+}
+
+function toggleCacheSelection(cacheCode) {
+  if (selectedCaches.has(cacheCode)) {
+    selectedCaches.delete(cacheCode);
+  } else {
+    selectedCaches.add(cacheCode);
+  }
+  updateTableCheckbox(cacheCode, selectedCaches.has(cacheCode));
+  updateSelectedCount();
+}
+
+function updateTableCheckbox(cacheCode, isChecked) {
+  $('[data-cache-code="' + cacheCode + '"] .cache-row-checkbox').prop('checked', isChecked);
+}
+
+function updateSelectedCount() {
+  $('#selectedCount').text(selectedCaches.size);
+}
+
+function exportSelectedAsCSV() {
+  if (selectedCaches.size === 0) {
+    return;
+  }
+
+  var selectedRows = [];
+  opportunityCaches.forEach(function (row) {
+    if (selectedCaches.has(row.cacheCode)) {
+      selectedRows.push(row);
+    }
+  });
+
+  var csv = 'GC Code,Cache Name,Type,Difficulty,Terrain,Container,Score,Signals,Source PQ,Latitude,Longitude\n';
+  selectedRows.forEach(function (row) {
+    var signals = row.signals.map(function (s) { return s.kind.toUpperCase() + ': ' + s.label; }).join(' | ');
+    csv += '"' + row.cacheCode + '",' +
+      '"' + escapeCSV(row.cacheName) + '",' +
+      '"' + row.cacheType + '",' +
+      row.difficulty + ',' +
+      row.terrain + ',' +
+      '"' + row.container + '",' +
+      row.score + ',' +
+      '"' + escapeCSV(signals) + '",' +
+      '"' + escapeCSV(row.sourceName) + '",' +
+      row.lat + ',' +
+      row.lon + '\n';
+  });
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'challengefiller-selected.csv';
+  link.click();
+}
+
+function escapeCSV(value) {
+  if (value.indexOf('"') >= 0 || value.indexOf(',') >= 0 || value.indexOf('\n') >= 0) {
+    return '"' + value.replace(/"/g, '""') + '"';
+  }
+  return value;
+}
+
+var $table = $('#challengeFillerTable\\.csv');
+if ($table.length && typeof $table.table2CSV === 'function') {
+  // Legacy export functionality (kept for compatibility if needed)
+}
 </script>
 <?php renderPageEnd(array('includeFloatingButtons' => true, 'clearPageHref' => 'gpxchallengefiller.php')); ?>

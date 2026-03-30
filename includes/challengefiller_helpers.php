@@ -256,6 +256,8 @@ if (!function_exists('cfScoreRegionCandidates')) {
                 'terrain' => $cache['terrain'],
                 'container' => $cache['container'],
                 'sourceName' => $cache['sourceName'],
+                'lat' => $cache['lat'],
+                'lon' => $cache['lon'],
                 'score' => count($signals),
                 'signals' => $signals,
             );
