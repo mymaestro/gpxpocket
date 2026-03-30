@@ -33,6 +33,83 @@ $extraHeadHtml = <<<'HTML'
       padding-top: 0.5rem;
       border-top: 1px solid #dee2e6;
     }
+    .cache-kind-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.4rem;
+    }
+    .cache-kind-badge {
+      display: inline-block;
+      padding: 0.1rem 0.35rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      line-height: 1.2;
+      color: #fff;
+      font-weight: 600;
+    }
+    .map-legend {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d1d5db;
+      border-radius: 0.35rem;
+      padding: 0.5rem 0.6rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+      font-size: 0.75rem;
+      color: #111827;
+      min-width: 210px;
+    }
+    .map-legend-title {
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+    .map-legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      margin: 0.2rem 0;
+    }
+    .map-legend-chip {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      border: 2px solid #111827;
+    }
+    .map-legend-sep {
+      border-top: 1px solid #e5e7eb;
+      margin: 0.45rem 0;
+    }
+    .upload-spinner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      backdrop-filter: blur(1px);
+    }
+    .upload-spinner-overlay.is-visible {
+      display: flex;
+    }
+    .upload-spinner-card {
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 1rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      min-width: 300px;
+      max-width: 90vw;
+    }
+    .upload-spinner-text {
+      font-size: 0.95rem;
+      color: #111827;
+      line-height: 1.3;
+    }
   </style>
 HTML;
 
@@ -266,7 +343,7 @@ $profileUpdatedAt = ($profileHasData && !empty($profileLoad['meta']['updatedAt']
       <div class="small text-muted mb-3">No stored My Finds baseline yet.</div>
     <?php } ?>
 
-    <form action="gpxchallengefiller.php" method="post" enctype="multipart/form-data" class="mx-auto" style="max-width: 980px;">
+    <form id="challengeFillerForm" action="gpxchallengefiller.php" method="post" enctype="multipart/form-data" class="mx-auto" style="max-width: 980px;">
       <div class="row g-3">
         <div class="col-md-6">
           <label for="targetUsername" class="form-label"><strong>Geocaching username</strong></label>
@@ -294,6 +371,16 @@ $profileUpdatedAt = ($profileHasData && !empty($profileLoad['meta']['updatedAt']
         <?php } ?>
       </div>
     </form>
+  </div>
+</div>
+
+<div id="uploadSpinnerOverlay" class="upload-spinner-overlay" aria-hidden="true" aria-live="polite">
+  <div class="upload-spinner-card" role="status">
+    <div class="spinner-border text-primary" aria-hidden="true"></div>
+    <div class="upload-spinner-text">
+      Uploading and processing files...
+      <div class="small text-muted">Large ZIP uploads can take a minute.</div>
+    </div>
   </div>
 </div>
 
@@ -329,7 +416,7 @@ if ($runCompleted) {
 
         echo '<div class="d-flex justify-content-between mb-3">';
         echo '  <div>';
-        echo '    <button type="button" id="exportSelectedCsv" class="btn btn-outline-primary btn-sm">Export Selected CSV</button>';
+        echo '    <button type="button" id="exportSelectedCsv" class="btn btn-outline-primary btn-sm" disabled>Export Selected CSV (<span id="exportSelectedCount">0</span>)</button>';
         echo '  </div>';
         echo '  <div>';
         echo '    <button type="button" id="exportTableCsv" class="btn btn-outline-primary btn-sm">Export All CSV</button>';
@@ -374,6 +461,29 @@ if ($runCompleted) {
 ?>
 
 <script>
+$(function () {
+  var $form = $('#challengeFillerForm');
+  if (!$form.length) {
+    return;
+  }
+
+  $form.on('submit', function (event) {
+    var submitter = (event.originalEvent && event.originalEvent.submitter) ? event.originalEvent.submitter : document.activeElement;
+    var action = submitter && submitter.value ? String(submitter.value) : '';
+    var myFindCount = ($('#myFindsFiles')[0] && $('#myFindsFiles')[0].files) ? $('#myFindsFiles')[0].files.length : 0;
+    var regionCount = ($('#regionFiles')[0] && $('#regionFiles')[0].files) ? $('#regionFiles')[0].files.length : 0;
+    var hasUploads = (myFindCount + regionCount) > 0;
+
+    if (action !== 'run' || !hasUploads) {
+      return true;
+    }
+
+    $('#uploadSpinnerOverlay').addClass('is-visible').attr('aria-hidden', 'false');
+    $form.find('button[type="submit"]').prop('disabled', true);
+    return true;
+  });
+});
+
 var opportunityCaches = <?php if ($runCompleted && count($opportunityRows) > 0) { echo json_encode($opportunityRows, JSON_UNESCAPED_SLASHES); } else { echo '[]'; } ?>;
 var selectedCaches = new Set();
 
@@ -394,25 +504,136 @@ $(function () {
     maxZoom: 19
   }).addTo(map);
 
+  var maxScore = opportunityCaches.reduce(function (acc, cache) {
+    var score = Number(cache.score) || 0;
+    return Math.max(acc, score);
+  }, 0);
+
+  var challengeMeta = {
+    county: { label: 'County', short: 'CO', color: '#1d4ed8' },
+    delorme: { label: 'DeLorme', short: 'DL', color: '#047857' },
+    dt: { label: 'D/T', short: 'DT', color: '#b45309' }
+  };
+
+  function getUniqueSignalKinds(cache) {
+    var seen = {};
+    var kinds = [];
+    (cache.signals || []).forEach(function (signal) {
+      var kind = (signal && signal.kind) ? String(signal.kind).toLowerCase() : '';
+      if (!kind || seen[kind]) {
+        return;
+      }
+      seen[kind] = true;
+      kinds.push(kind);
+    });
+    return kinds;
+  }
+
+  function getKindBadgeHtml(kinds) {
+    if (!kinds || kinds.length === 0) {
+      return '';
+    }
+    var badges = kinds.map(function (kind) {
+      var meta = challengeMeta[kind] || { label: kind.toUpperCase(), short: kind.slice(0, 2).toUpperCase(), color: '#4b5563' };
+      return '<span class="cache-kind-badge" style="background:' + meta.color + '">' + htmlEscape(meta.short) + '</span>';
+    }).join('');
+    return '<div class="cache-kind-badges">' + badges + '</div>';
+  }
+
+  function getBorderStyleForKinds(kinds) {
+    if (!kinds || kinds.length === 0) {
+      return { color: '#374151', dashArray: null };
+    }
+    if (kinds.length === 1) {
+      var meta = challengeMeta[kinds[0]];
+      return {
+        color: meta ? meta.color : '#374151',
+        dashArray: null
+      };
+    }
+    return {
+      color: '#111827',
+      dashArray: '4 3'
+    };
+  }
+
+  function getMarkerStyle(score, scoreMax, kinds) {
+    var safeScore = Math.max(0, Number(score) || 0);
+    var safeMax = Math.max(1, Number(scoreMax) || 1);
+
+    // Log normalization keeps the scale useful if future challenge scoring expands.
+    var normalized = Math.log(safeScore + 1) / Math.log(safeMax + 1);
+    normalized = Math.max(0, Math.min(1, normalized));
+
+    // Blue (low) -> Green -> Yellow -> Orange/Red (high)
+    var hue = 220 - (210 * normalized);
+    var fillColor = 'hsl(' + hue.toFixed(0) + ', 85%, 48%)';
+    var borderStyle = getBorderStyleForKinds(kinds);
+
+    return {
+      radius: 6 + Math.round(normalized * 8),
+      fillColor: fillColor,
+      color: borderStyle.color,
+      weight: 2,
+      opacity: 0.9,
+      fillOpacity: 0.75,
+      dashArray: borderStyle.dashArray
+    };
+  }
+
+  function scoreFillColor(score, scoreMax) {
+    var safeScore = Math.max(0, Number(score) || 0);
+    var safeMax = Math.max(1, Number(scoreMax) || 1);
+    var normalized = Math.log(safeScore + 1) / Math.log(safeMax + 1);
+    normalized = Math.max(0, Math.min(1, normalized));
+    var hue = 220 - (210 * normalized);
+    return 'hsl(' + hue.toFixed(0) + ', 85%, 48%)';
+  }
+
+  function addMapLegend(mapRef, scoreMax) {
+    var legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+      var div = L.DomUtil.create('div', 'map-legend');
+      var midScore = Math.max(1, Math.round(scoreMax / 2));
+      var highScore = Math.max(1, scoreMax);
+      div.innerHTML =
+        '<div class="map-legend-title">Marker Legend</div>' +
+        '<div class="map-legend-row"><span>Low score (1)</span><span class="map-legend-chip" style="background:' + scoreFillColor(1, scoreMax) + ';border-color:#111827"></span></div>' +
+        '<div class="map-legend-row"><span>Mid score (' + midScore + ')</span><span class="map-legend-chip" style="background:' + scoreFillColor(midScore, scoreMax) + ';border-color:#111827"></span></div>' +
+        '<div class="map-legend-row"><span>High score (' + highScore + ')</span><span class="map-legend-chip" style="background:' + scoreFillColor(highScore, scoreMax) + ';border-color:#111827"></span></div>' +
+        '<div class="map-legend-sep"></div>' +
+        '<div class="map-legend-row"><span>County only</span><span class="map-legend-chip" style="background:#fff;border-color:' + challengeMeta.county.color + '"></span></div>' +
+        '<div class="map-legend-row"><span>DeLorme only</span><span class="map-legend-chip" style="background:#fff;border-color:' + challengeMeta.delorme.color + '"></span></div>' +
+        '<div class="map-legend-row"><span>D/T only</span><span class="map-legend-chip" style="background:#fff;border-color:' + challengeMeta.dt.color + '"></span></div>' +
+        '<div class="map-legend-row"><span>Mixed challenges</span><span class="map-legend-chip" style="background:#fff;border-color:#111827;border-style:dashed"></span></div>';
+      return div;
+    };
+    legend.addTo(mapRef);
+  }
+
+  addMapLegend(map, maxScore);
+
   // Add markers for each opportunity cache
   opportunityCaches.forEach(function (cache, index) {
-    var marker = L.circleMarker([cache.lat, cache.lon], {
-      radius: 6 + Math.min(cache.score * 1.5, 8),
-      fillColor: '#007bff',
-      color: '#0056b3',
-      weight: 2,
-      opacity: 0.8,
-      fillOpacity: 0.7
-    });
+    var signalKinds = getUniqueSignalKinds(cache);
+    var marker = L.circleMarker([cache.lat, cache.lon], getMarkerStyle(cache.score, maxScore, signalKinds));
+    var kindLabel = signalKinds.length > 0
+      ? signalKinds.map(function (kind) {
+          var meta = challengeMeta[kind] || { short: kind.slice(0, 2).toUpperCase() };
+          return meta.short;
+        }).join(' / ')
+      : 'None';
 
     var popupContent = '<div class="cache-popup">' +
-      '<strong>' + htmlEscape(cache.cacheCode) + '</strong><br>' +
+      '<strong><a href="https://coord.info/' + encodeURIComponent(cache.cacheCode) + '" target="_blank" rel="noopener">' + htmlEscape(cache.cacheCode) + '</a></strong><br>' +
       '<small>' + htmlEscape(cache.cacheName) + '</small><br>' +
       '<div style="margin-top: 0.5rem;"><small>' +
       'Score: <strong>' + cache.score + '</strong><br>' +
+      'Challenges: <strong>' + htmlEscape(kindLabel) + '</strong><br>' +
       'D/T: ' + cache.difficulty + '/' + cache.terrain + '<br>' +
       'Type: ' + htmlEscape(cache.cacheType) +
       '</small></div>' +
+      getKindBadgeHtml(signalKinds) +
       '<div class="cache-popup-checkbox">' +
       '<label style="margin: 0;"><input type="checkbox" class="map-cache-checkbox" value="' + htmlEscape(cache.cacheCode) + '" data-index="' + index + '"> Select</label>' +
       '</div>' +
@@ -489,6 +710,8 @@ $(function () {
       $table.table2CSV({ filename: 'challengefiller-all.csv' });
     }
   });
+
+  updateSelectedCount();
 });
 
 function htmlEscape(text) {
@@ -517,7 +740,10 @@ function updateTableCheckbox(cacheCode, isChecked) {
 }
 
 function updateSelectedCount() {
-  $('#selectedCount').text(selectedCaches.size);
+  var count = selectedCaches.size;
+  $('#selectedCount').text(count);
+  $('#exportSelectedCount').text(count);
+  $('#exportSelectedCsv').prop('disabled', count === 0);
 }
 
 function exportSelectedAsCSV() {
