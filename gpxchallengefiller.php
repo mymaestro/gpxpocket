@@ -146,6 +146,9 @@ $coverage = null;
 $myFindsCount = 0;
 $regionCount = 0;
 $runCompleted = false;
+$missingDtCount = 0;
+$foundCountyCount = 0;
+$foundDeLormeCount = 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $maxUploadBytes = 100 * 1024 * 1024;
@@ -153,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($profileContext['ok'])) {
         echo '<div class="alert alert-danger" role="alert">' . h($profileContext['error']) . '</div>';
     } else {
-        $action = trim((string)(isset($_POST['action']) ? $_POST['action'] : 'run'));
+        $action = trim((string)(isset($_POST['action']) ? $_POST['action'] : ''));
         if ($action === 'reset-profile') {
             $deleted = profileStorageDelete($profileId);
             if (!empty($deleted['ok'])) {
@@ -191,118 +194,128 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $myFindsByCode = (!empty($profileLoad['ok']) && !empty($profileLoad['exists'])) ? $profileLoad['findsByCode'] : array();
 
-            if ($myFindsHasUpload) {
-                if ($targetUsername === '') {
-                    echo '<div class="alert alert-danger" role="alert">Enter your geocaching username when uploading My Finds.</div>';
-                } else {
-                    $parsedUploads = array();
-                    $uploadedMyFinds = array();
+            if ($action === 'save-my-finds') {
+              if (!$myFindsHasUpload) {
+                echo '<div class="alert alert-danger" role="alert">Upload at least one My Finds GPX/ZIP file to save your baseline.</div>';
+              } elseif ($targetUsername === '') {
+                echo '<div class="alert alert-danger" role="alert">Enter your geocaching username when uploading My Finds.</div>';
+              } else {
+                $parsedUploads = array();
+                $uploadedMyFinds = array();
 
-                    foreach ($myFindsUploads as $upload) {
-                        $parsed = extractGpxFromUpload($upload, $maxUploadBytes, $message);
-                        if (!$parsed) {
-                            continue;
-                        }
-                        $parsedUploads[] = $parsed;
+                foreach ($myFindsUploads as $upload) {
+                  $parsed = extractGpxFromUpload($upload, $maxUploadBytes, $message);
+                  if (!$parsed) {
+                    continue;
+                  }
+                  $parsedUploads[] = $parsed;
 
-                        $fileFinds = parseFoundCachesFromGpx($parsed['source'], $parsed['name'], $targetUsername, $message);
-                        foreach ($fileFinds as $code => $find) {
-                            if (!isset($uploadedMyFinds[$code]) || $find['firstFoundTs'] < $uploadedMyFinds[$code]['firstFoundTs']) {
-                                $uploadedMyFinds[$code] = $find;
-                            }
-                        }
+                  $fileFinds = parseFoundCachesFromGpx($parsed['source'], $parsed['name'], $targetUsername, $message);
+                  foreach ($fileFinds as $code => $find) {
+                    if (!isset($uploadedMyFinds[$code]) || $find['firstFoundTs'] < $uploadedMyFinds[$code]['firstFoundTs']) {
+                      $uploadedMyFinds[$code] = $find;
                     }
-
-                    foreach ($parsedUploads as $parsed) {
-                        cleanupExtracted($parsed);
-                    }
-                    unset($parsedUploads, $fileFinds, $parsed);
-                    if (function_exists('gc_collect_cycles')) {
-                        gc_collect_cycles();
-                    }
-
-                    if (count($uploadedMyFinds) < 1) {
-                        echo '<div class="alert alert-warning" role="alert">No matching Found it logs found for ' . h($targetUsername) . ' in uploaded My Finds. ' . h($message) . '</div>';
-                    } else {
-                        $saved = profileStorageSaveMyFinds($profileId, $uploadedMyFinds, array(
-                            'finderName' => $targetUsername,
-                            'sourceLabel' => 'ChallengeFiller My Finds upload',
-                        ));
-                        if (!empty($saved['ok'])) {
-                            $profileLoad = profileStorageLoad($profileId);
-                            $myFindsByCode = $profileLoad['findsByCode'];
-                            echo '<div class="alert alert-success" role="alert">Stored ' . count($myFindsByCode) . ' My Finds entries for future ChallengeFiller runs.</div>';
-                        } else {
-                            echo '<div class="alert alert-danger" role="alert">Unable to store My Finds profile: ' . h($saved['error']) . '</div>';
-                        }
-                    }
+                  }
                 }
-            }
 
-            if (count($myFindsByCode) < 1) {
-                echo '<div class="alert alert-warning" role="alert">Upload a My Finds pocket query at least once to build your baseline challenge profile.</div>';
-            } elseif (!$regionHasUpload) {
+                foreach ($parsedUploads as $parsed) {
+                  cleanupExtracted($parsed);
+                }
+                unset($parsedUploads, $fileFinds, $parsed);
+                if (function_exists('gc_collect_cycles')) {
+                  gc_collect_cycles();
+                }
+
+                if (count($uploadedMyFinds) < 1) {
+                  echo '<div class="alert alert-warning" role="alert">No matching Found it logs found for ' . h($targetUsername) . ' in uploaded My Finds. ' . h($message) . '</div>';
+                } else {
+                  $saved = profileStorageSaveMyFinds($profileId, $uploadedMyFinds, array(
+                    'finderName' => $targetUsername,
+                    'sourceLabel' => 'ChallengeFiller My Finds upload',
+                  ));
+                  if (!empty($saved['ok'])) {
+                    $profileLoad = profileStorageLoad($profileId);
+                    $myFindsByCode = $profileLoad['findsByCode'];
+                    echo '<div class="alert alert-success" role="alert">Stored ' . count($myFindsByCode) . ' My Finds entries. Next step: upload regional PQ files and click Find Opportunities.</div>';
+                  } else {
+                    echo '<div class="alert alert-danger" role="alert">Unable to store My Finds profile: ' . h($saved['error']) . '</div>';
+                  }
+                }
+              }
+            } elseif ($action === 'run') {
+              if ($myFindsHasUpload) {
+                echo '<div class="alert alert-warning" role="alert">For faster runs, upload My Finds first using "Save/Update My Finds Baseline", then run regional scoring in a separate step.</div>';
+              } elseif (count($myFindsByCode) < 1) {
+                echo '<div class="alert alert-warning" role="alert">Upload a My Finds pocket query first to build your baseline challenge profile.</div>';
+              } elseif (!$regionHasUpload) {
                 echo '<div class="alert alert-danger" role="alert">Upload at least one regional pocket query to score opportunities.</div>';
-            } else {
+              } else {
                 $parsedRegionUploads = array();
                 $regionCachesByCode = array();
 
                 foreach ($regionUploads as $upload) {
-                    $parsed = extractGpxFromUpload($upload, $maxUploadBytes, $message);
-                    if (!$parsed) {
-                        continue;
-                    }
-                    $parsedRegionUploads[] = $parsed;
+                  $parsed = extractGpxFromUpload($upload, $maxUploadBytes, $message);
+                  if (!$parsed) {
+                    continue;
+                  }
+                  $parsedRegionUploads[] = $parsed;
 
-                    $regionRows = parseRegionCachesFromGpx($parsed['source'], $parsed['name'], $message);
-                    foreach ($regionRows as $code => $row) {
-                        if (!isset($regionCachesByCode[$code])) {
-                            $regionCachesByCode[$code] = $row;
-                        }
+                  $regionRows = parseRegionCachesFromGpx($parsed['source'], $parsed['name'], $message);
+                  foreach ($regionRows as $code => $row) {
+                    if (!isset($regionCachesByCode[$code])) {
+                      $regionCachesByCode[$code] = $row;
                     }
+                  }
                 }
 
                 foreach ($parsedRegionUploads as $parsed) {
-                    cleanupExtracted($parsed);
+                  cleanupExtracted($parsed);
                 }
                 unset($parsedRegionUploads, $regionRows, $parsed);
                 if (function_exists('gc_collect_cycles')) {
-                    gc_collect_cycles();
+                  gc_collect_cycles();
                 }
 
                 if (count($regionCachesByCode) < 1) {
-                    echo '<div class="alert alert-warning" role="alert">No cache waypoints found in regional uploads. ' . h($message) . '</div>';
+                  echo '<div class="alert alert-warning" role="alert">No cache waypoints found in regional uploads. ' . h($message) . '</div>';
                 } else {
-                    if (!empty($profileLoad['ok']) && !empty($profileLoad['exists'])) {
-                        profileStorageTouchAccessed($profileId);
-                    }
+                  if (!empty($profileLoad['ok']) && !empty($profileLoad['exists'])) {
+                    profileStorageTouchAccessed($profileId);
+                  }
 
-                    $coverage = cfBuildCoverageFromMyFinds(
-                        $myFindsByCode,
-                        $hasCountyDataset ? $countyFeatures : array(),
-                        $hasDeLormeDataset ? $deLormePages : array(),
-                        $deLormeDataDir
-                    );
+                  $coverage = cfBuildCoverageFromMyFinds(
+                    $myFindsByCode,
+                    $hasCountyDataset ? $countyFeatures : array(),
+                    $hasDeLormeDataset ? $deLormePages : array(),
+                    $deLormeDataDir
+                  );
 
-                    $opportunityRows = cfScoreRegionCandidates(
-                        $regionCachesByCode,
-                        $myFindsByCode,
-                        $coverage,
-                        $hasCountyDataset ? $countyFeatures : array(),
-                        $hasDeLormeDataset ? $deLormePages : array(),
-                        $deLormeDataDir
-                    );
+                  $opportunityRows = cfScoreRegionCandidates(
+                    $regionCachesByCode,
+                    $myFindsByCode,
+                    $coverage,
+                    $hasCountyDataset ? $countyFeatures : array(),
+                    $hasDeLormeDataset ? $deLormePages : array(),
+                    $deLormeDataDir
+                  );
 
-                    $myFindsCount = count($myFindsByCode);
-                    $regionCount = count($regionCachesByCode);
-                    $runCompleted = true;
+                  $missingDtCount = isset($coverage['missingDtByKey']) ? count($coverage['missingDtByKey']) : 0;
+                  $foundCountyCount = isset($coverage['foundCountyByFips']) ? count($coverage['foundCountyByFips']) : 0;
+                  $foundDeLormeCount = isset($coverage['foundDelormeById']) ? count($coverage['foundDelormeById']) : 0;
 
-                    // Free large arrays after scoring is complete
-                    unset($regionCachesByCode, $coverage, $countyFeatures, $deLormePages);
-                    if (function_exists('gc_collect_cycles')) {
-                        gc_collect_cycles();
-                    }
+                  $myFindsCount = count($myFindsByCode);
+                  $regionCount = count($regionCachesByCode);
+                  $runCompleted = true;
+
+                  // Free large arrays after scoring is complete
+                  unset($regionCachesByCode, $coverage, $countyFeatures, $deLormePages);
+                  if (function_exists('gc_collect_cycles')) {
+                    gc_collect_cycles();
+                  }
                 }
+              }
+            } else {
+              echo '<div class="alert alert-danger" role="alert">Unknown action requested.</div>';
             }
         }
     }
@@ -348,30 +361,32 @@ $profileUpdatedAt = ($profileHasData && !empty($profileLoad['meta']['updatedAt']
 
     <form id="challengeFillerForm" action="gpxchallengefiller.php" method="post" enctype="multipart/form-data" class="mx-auto" style="max-width: 980px;">
       <div class="row g-3">
-        <div class="col-md-6">
+        <div class="col-12">
           <label for="targetUsername" class="form-label"><strong>Geocaching username</strong></label>
           <input type="text" class="form-control" id="targetUsername" name="targetUsername" value="<?php echo h($targetUsername !== '' ? $targetUsername : $profileFinder); ?>" placeholder="Required only when uploading new My Finds">
           <div class="form-text">Used to validate Found it ownership when ingesting My Finds files.</div>
         </div>
 
-        <div class="col-md-6">
-          <label for="myFindsFiles" class="form-label"><strong>My Finds GPX/ZIP (optional)</strong></label>
+        <div class="col-12">
+          <label for="myFindsFiles" class="form-label"><strong>Step 1: My Finds GPX/ZIP</strong></label>
           <input type="file" class="form-control" id="myFindsFiles" name="myFindsFiles[]" accept=".gpx,.zip" multiple>
-          <div class="form-text">Upload now to create or replace your stored baseline profile.</div>
+          <div class="form-text">Upload these first, then click "Save/Update My Finds Baseline".</div>
+          <div class="mt-2 d-flex flex-wrap gap-2">
+            <button type="submit" name="action" value="save-my-finds" class="btn btn-outline-primary">Save/Update My Finds Baseline</button>
+          </div>
         </div>
 
         <div class="col-12">
-          <label for="regionFiles" class="form-label"><strong>Regional PQ GPX/ZIP (required for scoring run)</strong></label>
+          <label for="regionFiles" class="form-label"><strong>Step 2: Regional PQ GPX/ZIP</strong></label>
           <input type="file" class="form-control" id="regionFiles" name="regionFiles[]" accept=".gpx,.zip" multiple>
-          <div class="form-text">These are the currently available caches in your target trip area.</div>
+          <div class="form-text">After baseline is saved, upload regional files and click "Find Opportunities".</div>
+          <div class="mt-2 d-flex flex-wrap gap-2">
+            <button type="submit" name="action" value="run" class="btn btn-primary">Find Opportunities</button>
+            <?php if ($profileHasData) { ?>
+              <button type="submit" name="action" value="reset-profile" class="btn btn-outline-danger" onclick="return confirm('Delete stored My Finds baseline and rotate token cookie?');">Reset Stored Profile</button>
+            <?php } ?>
+          </div>
         </div>
-      </div>
-
-      <div class="d-flex gap-2 mt-3">
-        <button type="submit" name="action" value="run" class="btn btn-primary">Find Opportunities</button>
-        <?php if ($profileHasData) { ?>
-          <button type="submit" name="action" value="reset-profile" class="btn btn-outline-danger" onclick="return confirm('Delete stored My Finds baseline and rotate token cookie?');">Reset Stored Profile</button>
-        <?php } ?>
       </div>
     </form>
   </div>
@@ -389,10 +404,6 @@ $profileUpdatedAt = ($profileHasData && !empty($profileLoad['meta']['updatedAt']
 
 <?php
 if ($runCompleted) {
-    $missingDtCount = isset($coverage['missingDtByKey']) ? count($coverage['missingDtByKey']) : 0;
-    $foundCountyCount = isset($coverage['foundCountyByFips']) ? count($coverage['foundCountyByFips']) : 0;
-    $foundDeLormeCount = isset($coverage['foundDelormeById']) ? count($coverage['foundDelormeById']) : 0;
-
     echo '<div class="row g-3 mb-4">';
     echo '  <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">My Finds baseline</div><div class="display-6">' . (int)$myFindsCount . '</div></div></div></div>';
     echo '  <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Regional caches</div><div class="display-6">' . (int)$regionCount . '</div></div></div></div>';
@@ -475,14 +486,16 @@ $(function () {
     var action = submitter && submitter.value ? String(submitter.value) : '';
     var myFindCount = ($('#myFindsFiles')[0] && $('#myFindsFiles')[0].files) ? $('#myFindsFiles')[0].files.length : 0;
     var regionCount = ($('#regionFiles')[0] && $('#regionFiles')[0].files) ? $('#regionFiles')[0].files.length : 0;
-    var hasUploads = (myFindCount + regionCount) > 0;
+    var shouldShowSpinner = (action === 'save-my-finds' && myFindCount > 0) || (action === 'run' && regionCount > 0);
 
-    if (action !== 'run' || !hasUploads) {
+    if (!shouldShowSpinner) {
       return true;
     }
 
     $('#uploadSpinnerOverlay').addClass('is-visible').attr('aria-hidden', 'false');
-    $form.find('button[type="submit"]').prop('disabled', true);
+    if (submitter) {
+      $form.find('button[type="submit"]').not(submitter).prop('disabled', true);
+    }
     return true;
   });
 });
