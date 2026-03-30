@@ -1,4 +1,6 @@
 <?php
+ini_set('memory_limit', '512M');
+
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/gpx_helpers.php';
 require_once __DIR__ . '/includes/gpx_format_helpers.php';
@@ -113,6 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     foreach ($parsedUploads as $parsed) {
                         cleanupExtracted($parsed);
                     }
+                    unset($parsedUploads, $fileFinds, $parsed);
+                    if (function_exists('gc_collect_cycles')) {
+                        gc_collect_cycles();
+                    }
 
                     if (count($uploadedMyFinds) < 1) {
                         echo '<div class="alert alert-warning" role="alert">No matching Found it logs found for ' . h($targetUsername) . ' in uploaded My Finds. ' . h($message) . '</div>';
@@ -158,6 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($parsedRegionUploads as $parsed) {
                     cleanupExtracted($parsed);
                 }
+                unset($parsedRegionUploads, $regionRows, $parsed);
+                if (function_exists('gc_collect_cycles')) {
+                    gc_collect_cycles();
+                }
 
                 if (count($regionCachesByCode) < 1) {
                     echo '<div class="alert alert-warning" role="alert">No cache waypoints found in regional uploads. ' . h($message) . '</div>';
@@ -185,6 +195,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $myFindsCount = count($myFindsByCode);
                     $regionCount = count($regionCachesByCode);
                     $runCompleted = true;
+
+                    // Free large arrays after scoring is complete
+                    unset($regionCachesByCode, $coverage, $countyFeatures, $deLormePages);
+                    if (function_exists('gc_collect_cycles')) {
+                        gc_collect_cycles();
+                    }
                 }
             }
         }
@@ -273,7 +289,10 @@ if ($runCompleted) {
     echo '  <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Missing D/T cells</div><div class="display-6">' . (int)$missingDtCount . '</div></div></div></div>';
     echo '</div>';
 
-    echo '<div class="alert alert-info" role="status">Current coverage snapshot: ' . (int)$foundCountyCount . ' counties found, ' . (int)$foundDeLormeCount . ' DeLorme pages found, ' . (int)$missingDtCount . ' D/T cells missing.</div>';
+    echo '<div class="alert alert-info alert-dismissible fade show" role="status">';
+    echo 'Current coverage snapshot: ' . (int)$foundCountyCount . ' counties found, ' . (int)$foundDeLormeCount . ' DeLorme pages found, ' . (int)$missingDtCount . ' D/T cells missing.';
+    echo '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+    echo '</div>';
 
     if (count($opportunityRows) < 1) {
         echo '<div class="alert alert-success" role="alert">No unmet county/DeLorme/DT opportunities found in the regional upload set.</div>';
