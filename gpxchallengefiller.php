@@ -421,7 +421,7 @@ if ($runCompleted) {
     } else {
         echo '<h5 class="mt-4 mb-3">Opportunity Map</h5>';
         echo '<div id="opportunityMap"></div>';
-        
+
         echo '<div class="mb-3">';
         echo '  <button type="button" id="selectAllCaches" class="btn btn-sm btn-outline-secondary">Select All</button>';
         echo '  <button type="button" id="deselectAllCaches" class="btn btn-sm btn-outline-secondary">Deselect All</button>';
