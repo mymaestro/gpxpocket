@@ -9,7 +9,7 @@ renderPageStart(array(
 ?>
       <div class="headline">
         <h1>Historical GPX activity heatmap</h1>
-        <p class="lead">Drop multiple GPX/ZIP files at once. Pocket Queries are ordered by GPX &lt;time&gt; and visualized in a calendar heatmap.</p>
+        <p class="lead">Drop multiple GPX/ZIP files at once. Pocket queries are ordered by GPX &lt;time&gt; and visualized in a calendar heat map.</p>
       </div>
 
 <?php
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             sort($yearList);
             $defaultYear = !empty($yearList) ? max($yearList) : (int)date('Y');
 
-            echo '<div class="alert alert-success" role="alert">Processed ' . count($snapshots) . ' Pocket Queries. Found ' . array_sum($dailyCounts) . ' new logs across ' . count($dailyCounts) . ' days.</div>';
+            echo '<div class="alert alert-success" role="alert">Processed ' . count($snapshots) . ' pocket queries. Found ' . array_sum($dailyCounts) . ' new logs across ' . count($dailyCounts) . ' days.</div>';
 
             echo '<div class="row history-results-row">';
 
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="text-muted mb-0">or click to choose several files at once</div>
           <div id="historySelected" class="small mt-3 text-dark"></div>
         </div>
-        <button id="historySubmit" type="submit" class="btn btn-primary mt-3" disabled>Build Heatmap</button>
+        <button id="historySubmit" type="submit" class="btn btn-primary mt-3" disabled>Build heat map</button>
       </form>
     </div>
     ';
