@@ -9,57 +9,52 @@ if (!function_exists('layoutEscape')) {
 if (!function_exists('renderNavbar')) {
     function renderNavbar($activeNav = 'home') {
         $items = array(
-            'home' => array('label' => 'Home', 'href' => './index.php'),
-            'gpx2csv' => array('label' => 'SpreadsheetMaker', 'href' => './gpx2csv.php'),
-            'gpxdiff' => array('label' => 'Changed caches', 'href' => './gpxdiff.php'),
-            'gpxhistory' => array('label' => 'History heatmap', 'href' => './gpxhistory.php'),
-            'gpxfriends' => array('label' => 'Caching companions', 'href' => './gpxfriends.php'),
-            'gpxleaderboard' => array('label' => 'Leaderboard', 'href' => './gpxleaderboard.php'),
-            'gpxcountyprogress' => array('label' => 'County progress', 'href' => './gpxcounty-progress.php'),
-            'gpxdelormprogress' => array('label' => 'DeLorme progress', 'href' => './gpxdelorme-progress.php'),
-            'gpxchallengefiller' => array('label' => 'ChallengeFiller', 'href' => './gpxchallengefiller.php'),
+            'gpxfriends' => array('label' => 'Caching companions', 'href' => './gpxfriends.php', 'icon' => 'bi-people'),
+            'gpxdiff' => array('label' => 'Changed caches', 'href' => './gpxdiff.php', 'icon' => 'bi-intersect'),
+            'gpxchallengefiller' => array('label' => 'ChallengeFiller', 'href' => './gpxchallengefiller.php', 'icon' => 'bi-bullseye'),
+            'gpxcountyprogress' => array('label' => 'County progress', 'href' => './gpxcounty-progress.php', 'icon' => 'bi-map'),
+            'gpxdelormprogress' => array('label' => 'DeLorme progress', 'href' => './gpxdelorme-progress.php', 'icon' => 'bi-map'),
+            'gpxhistory' => array('label' => 'History heatmap', 'href' => './gpxhistory.php', 'icon' => 'bi-calendar3'),
+            'gpxleaderboard' => array('label' => 'Leaderboard', 'href' => './gpxleaderboard.php', 'icon' => 'bi-trophy'),
+            'gpx2csv' => array('label' => 'SpreadsheetMaker', 'href' => './gpx2csv.php', 'icon' => 'bi-filetype-csv'),
         );
 
-        echo '    <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top border-bottom">';
-        echo '      <div class="container-fluid px-3 px-md-4">';
-        echo '      <a class="navbar-brand" href="#"><i class="bi bi-globe-americas me-2" aria-hidden="true"></i>Geocaching</a>';
-        echo '      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-top" aria-controls="navbar-top" aria-expanded="false" aria-label="Toggle navigation">';
-        echo '        <span class="navbar-toggler-icon"></span>';
+        echo '  <header class="mobile-header d-lg-none fixed-top border-bottom">';
+        echo '    <div class="container-fluid d-flex align-items-center justify-content-between px-3 py-2">';
+        echo '      <a class="navbar-brand mb-0" href="./index.php"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>GPX Pocket</a>';
+        echo '      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#siteSidebar" aria-controls="siteSidebar" aria-label="Open navigation">';
+        echo '        <i class="bi bi-list" aria-hidden="true"></i>';
         echo '      </button>';
-        echo '      <div class="collapse navbar-collapse" id="navbar-top">';
-        echo '        <ul class="navbar-nav me-auto">';
+        echo '    </div>';
+        echo '  </header>';
 
-
+        echo '  <aside class="site-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="siteSidebar" aria-labelledby="siteSidebarLabel">';
+        echo '    <div class="offcanvas-header sidebar-header">';
+        echo '      <a class="navbar-brand mb-0" id="siteSidebarLabel" href="./index.php"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>GPX Pocket</a>';
+        echo '      <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#siteSidebar" aria-label="Close navigation"></button>';
+        echo '    </div>';
+        echo '    <div class="offcanvas-body sidebar-body">';
+        echo '      <nav aria-label="Main navigation">';
+        echo '        <a class="nav-link' . ($activeNav === 'home' ? ' active fw-semibold' : '') . '" href="./index.php"' . ($activeNav === 'home' ? ' aria-current="page"' : '') . '><i class="bi bi-house me-2" aria-hidden="true"></i>Home</a>';
+        echo '        <div class="sidebar-section-label">Tools</div>';
+        echo '        <ul class="nav nav-pills flex-column gap-1">';
         foreach ($items as $key => $item) {
             $isActive = ($key === $activeNav);
-            echo '        <li class="nav-item' . ($isActive ? ' active' : '') . '">';
-            echo '          <a class="nav-link" href="' . layoutEscape($item['href']) . '">' . layoutEscape($item['label']);
-            if ($isActive) {
-                echo ' <span class="visually-hidden">(current)</span>';
-            }
-            echo '</a>';
-            echo '        </li>';
+            echo '          <li class="nav-item"><a class="nav-link' . ($isActive ? ' active fw-semibold' : '') . '" href="' . layoutEscape($item['href']) . '"' . ($isActive ? ' aria-current="page"' : '') . '>';
+            echo '<i class="bi ' . layoutEscape($item['icon']) . ' me-2" aria-hidden="true"></i>' . layoutEscape($item['label']) . '</a></li>';
         }
-
-        echo '        <li class="nav-item dropdown">';
-        echo '          <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">On geocaching.com</a>';
-        echo '          <div class="dropdown-menu" aria-labelledby="dropdown01">';
-        echo '            <a class="dropdown-item" href="https://www.geocaching.com/find/default.aspx" target="_blank" rel="noopener">Find Another Player</a>';
-        echo '            <a class="dropdown-item" href="https://www.geocaching.com/plan/lists" target="_blank" rel="noopener">Lists</a>';
-        echo '            <a class="dropdown-item" href="https://www.geocaching.com/pocket/default.aspx" target="_blank" rel="noopener">Pocket Queries</a>';
-        echo '            <a class="dropdown-item" href="https://www.geocaching.com/play/geotours" target="_blank" rel="noopener">Tours</a>';
-        echo '          </div>';
-        echo '        </li>';
-
-        echo '      </ul>';
-        echo '        <ul class="navbar-nav ms-md-3">';
-        echo '          <li class="nav-item">';
-        echo '            <a class="nav-link" href="https://github.com/mymaestro/gpxpocket" target="_blank" rel="noopener"><i class="bi bi-github me-1" aria-hidden="true"></i>GitHub</a>';
-        echo '          </li>';
         echo '        </ul>';
+        echo '      </nav>';
+        echo '      <div class="sidebar-footer mt-auto">';
+        echo '        <div class="sidebar-section-label">Geocaching.com</div>';
+        echo '        <a class="nav-link" href="https://www.geocaching.com/find/default.aspx" target="_blank" rel="noopener noreferrer">Find another player</a>';
+        echo '        <a class="nav-link" href="https://www.geocaching.com/plan/lists" target="_blank" rel="noopener noreferrer">Lists</a>';
+        echo '        <a class="nav-link" href="https://www.geocaching.com/pocket/default.aspx" target="_blank" rel="noopener noreferrer">Pocket Queries</a>';
+        echo '        <a class="nav-link" href="https://www.geocaching.com/play/geotours" target="_blank" rel="noopener noreferrer">Tours</a>';
+        echo '        <a class="nav-link" href="https://github.com/mymaestro/gpxpocket" target="_blank" rel="noopener noreferrer"><i class="bi bi-github me-2" aria-hidden="true"></i>GitHub</a>';
+        echo '      </div>';
         echo '    </div>';
-        echo '    </div>';
-        echo '  </nav>';
+        echo '  </aside>';
     }
 }
 
@@ -80,7 +75,7 @@ if (!function_exists('renderPageStart')) {
         echo '  <meta name="author" content="Warren Gill">';
         echo '  <title>' . layoutEscape($title) . '</title>';
         echo '  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ctext y=\'0.9em\' font-size=\'90%\'%3E%F0%9F%8C%90%3C/text%3E%3C/svg%3E">';
-        echo '  <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">';
+        echo '  <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/sandstone/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">';
         echo '  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">';
         echo '  <link href="files/styles.css" rel="stylesheet">';
         echo '  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>';
@@ -103,7 +98,7 @@ if (!function_exists('renderPageEnd')) {
     function renderPageEnd($options = array()) {
         $includeFloatingButtons = !empty($options['includeFloatingButtons']);
         $clearPageHref = isset($options['clearPageHref']) ? $options['clearPageHref'] : '';
-        $footerVersion = isset($options['footerVersion']) ? $options['footerVersion'] : 'v1.1';
+        $footerVersion = isset($options['footerVersion']) ? $options['footerVersion'] : 'v1.2';
 
         echo '    </div>';
         echo '  </main>';
