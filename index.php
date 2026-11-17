@@ -17,6 +17,17 @@ renderPageStart(array(
       <div class="row row-cols-1 row-cols-md-2 g-4 mb-4">
         <div class="col">
           <div class="d-flex align-items-start gap-3">
+            <div class="fs-3 lh-1 text-primary"><i class="bi bi-map"></i></div>
+            <div>
+              <h5 class="mb-1">CacheAtlas</h5>
+              <p class="mb-2">Turn a Pocket Query GPX/ZIP into a geographic, monochrome atlas for landscape printing.</p>
+              <a href="./gpxroadbook.php" class="icon-link">Open <i class="bi bi-arrow-right"></i></a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="d-flex align-items-start gap-3">
             <div class="fs-3 lh-1 text-primary"><i class="bi bi-filetype-csv"></i></div>
             <div>
               <h5 class="mb-1">SpreadsheetMaker</h5>
