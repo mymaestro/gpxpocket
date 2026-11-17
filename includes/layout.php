@@ -9,6 +9,7 @@ if (!function_exists('layoutEscape')) {
 if (!function_exists('renderNavbar')) {
     function renderNavbar($activeNav = 'home') {
         $items = array(
+            'gpxroadbook' => array('label' => 'CacheAtlas', 'href' => './gpxroadbook.php', 'icon' => 'bi-map'),
             'gpxfriends' => array('label' => 'Caching companions', 'href' => './gpxfriends.php', 'icon' => 'bi-people'),
             'gpxdiff' => array('label' => 'Changed caches', 'href' => './gpxdiff.php', 'icon' => 'bi-intersect'),
             'gpxchallengefiller' => array('label' => 'ChallengeFiller', 'href' => './gpxchallengefiller.php', 'icon' => 'bi-bullseye'),
